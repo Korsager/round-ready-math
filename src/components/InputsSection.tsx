@@ -48,9 +48,11 @@ const FieldInput: React.FC<FieldInputProps> = ({
       setLocalValue(format ? format(value) : value.toString());
       return;
     }
-    const clamped = Math.min(max, Math.max(min, parsed));
-    const stepped = Math.round(clamped / step) * step;
-    onChange(stepped);
+    if (parsed <= 0) {
+      setLocalValue(format ? format(value) : value.toString());
+      return;
+    }
+    onChange(parsed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
