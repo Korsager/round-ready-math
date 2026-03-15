@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 
 export interface CalcInputs {
   raise: number;
-  preMoney: number;
+  dilutionPct: number;
   shares: number;
   targetIrr: number;
   yearsToExit: number;
@@ -11,7 +11,7 @@ export interface CalcInputs {
 
 export const DEFAULTS: CalcInputs = {
   raise: 2_000_000,
-  preMoney: 8_000_000,
+  dilutionPct: 20,
   shares: 10_000_000,
   targetIrr: 30,
   yearsToExit: 5,
