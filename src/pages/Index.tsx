@@ -189,6 +189,16 @@ const Index = () => {
                   tooltip="How much capital you're raising. Try '2M' or '500K'."
                 />
                 <ManualInput
+                  label="Pre-Money Valuation" value={r.preMoney}
+                  onChange={(v) => {
+                    if (v > 0 && inputs.raise > 0) {
+                      update("dilutionPct", +((inputs.raise / (v + inputs.raise)) * 100).toFixed(2));
+                    }
+                  }}
+                  format={fmtM}
+                  tooltip="Pre-money valuation. Editing this recalculates dilution automatically."
+                />
+                <ManualInput
                   label="Dilution %" value={inputs.dilutionPct}
                   onChange={(v) => update("dilutionPct", v)}
                   format={(v) => `${v}%`} suffix="%"
