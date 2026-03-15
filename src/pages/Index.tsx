@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import rocketImg from "@/assets/rocket-launch.png";
+import HeatmapGrid from "@/components/HeatmapGrid";
 
 /* ── Calc Engine (inline) ── */
 interface Inputs {
