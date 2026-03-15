@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Rocket, ArrowUpRight, TrendingUp, DollarSign, PieChart,
   BarChart3, Target, RotateCcw, ChevronDown, ChevronUp
@@ -37,34 +37,72 @@ function compute(i: Inputs) {
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-/* ── Slider Input ── */
-const SliderInput = ({
-  label, value, onChange, min, max, step, format, tooltip
+/* ── Parse shorthand like "2M", "500K", "10", "25%" ── */
+function parseShorthand(raw: string, suffix?: string): number | null {
+  const s = raw.trim().replace(/[$,]/g, "").replace(/%$/, "").replace(/×$/, "").replace(/yr$/i, "");
+  if (!s) return null;
+  const match = s.match(/^(\d+\.?\d*)\s*([mkb]?)$/i);
+  if (!match) return null;
+  let num = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+  if (unit === "k") num *= 1_000;
+  else if (unit === "m") num *= 1_000_000;
+  else if (unit === "b") num *= 1_000_000_000;
+  return isNaN(num) ? null : num;
+}
+
+/* ── Manual Text Input ── */
+const ManualInput = ({
+  label, value, onChange, format, suffix, tooltip
 }: {
   label: string; value: number; onChange: (v: number) => void;
-  min: number; max: number; step: number; format: (v: number) => string; tooltip: string;
-}) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
+  format: (v: number) => string; suffix?: string; tooltip: string;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setDraft(format(value).replace(/[$,]/g, ""));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commit = () => {
+    const parsed = parseShorthand(draft, suffix);
+    if (parsed !== null && parsed > 0) onChange(parsed);
+    setEditing(false);
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
           <span className="text-xs font-medium text-muted-foreground">{label}</span>
-          <span className="text-sm font-bold text-foreground tabular-nums">{format(value)}</span>
+          {editing ? (
+            <input
+              ref={inputRef}
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+              className="w-24 text-right text-sm font-bold text-foreground bg-secondary rounded-md px-2 py-1 outline-none ring-1 ring-primary/30 tabular-nums"
+            />
+          ) : (
+            <button
+              onClick={startEdit}
+              className="text-sm font-bold text-foreground tabular-nums hover:text-primary hover:bg-secondary px-2 py-1 rounded-md transition-colors"
+            >
+              {format(value)}
+            </button>
+          )}
         </div>
-        <input
-          type="range"
-          min={min} max={max} step={step} value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-primary"
-          style={{
-            background: `linear-gradient(to right, hsl(217,91%,60%) ${((value - min) / (max - min)) * 100}%, hsl(220,13%,91%) ${((value - min) / (max - min)) * 100}%)`
-          }}
-        />
-      </div>
-    </TooltipTrigger>
-    <TooltipContent side="top" className="max-w-[200px] text-xs">{tooltip}</TooltipContent>
-  </Tooltip>
-);
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[200px] text-xs">{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 /* ── Metric Card ── */
 const MetricCard = ({
@@ -143,41 +181,36 @@ const Index = () => {
               <h3 className="text-base font-semibold text-foreground mb-5 flex items-center gap-2">
                 <BarChart3 size={16} className="text-primary" /> Adjust Your Round
               </h3>
-              <div className="space-y-5">
-                <SliderInput
+              <div className="space-y-0">
+                <ManualInput
                   label="Raise Amount" value={inputs.raise}
                   onChange={(v) => update("raise", v)}
-                  min={100_000} max={20_000_000} step={100_000}
                   format={fmtM}
-                  tooltip="How much capital you're raising in this round."
+                  tooltip="How much capital you're raising. Try '2M' or '500K'."
                 />
-                <SliderInput
+                <ManualInput
                   label="Dilution %" value={inputs.dilutionPct}
                   onChange={(v) => update("dilutionPct", v)}
-                  min={1} max={50} step={0.5}
-                  format={(v) => `${v}%`}
-                  tooltip="Percentage of ownership you give to investors."
+                  format={(v) => `${v}%`} suffix="%"
+                  tooltip="Ownership % you give to investors."
                 />
-                <SliderInput
+                <ManualInput
                   label="Target IRR" value={inputs.targetIrr}
                   onChange={(v) => update("targetIrr", v)}
-                  min={5} max={100} step={1}
-                  format={(v) => `${v}%`}
+                  format={(v) => `${v}%`} suffix="%"
                   tooltip="Annual return rate investors expect."
                 />
-                <SliderInput
+                <ManualInput
                   label="Years to Exit" value={inputs.yearsToExit}
-                  onChange={(v) => update("yearsToExit", v)}
-                  min={1} max={12} step={1}
-                  format={(v) => `${v}yr`}
-                  tooltip="Expected time horizon until exit/liquidity event."
+                  onChange={(v) => update("yearsToExit", Math.round(v))}
+                  format={(v) => `${v}yr`} suffix="yr"
+                  tooltip="Expected time until exit/liquidity."
                 />
-                <SliderInput
+                <ManualInput
                   label="Your MOIC" value={inputs.targetMoic}
                   onChange={(v) => update("targetMoic", v)}
-                  min={1} max={20} step={0.5}
-                  format={(v) => `${v}×`}
-                  tooltip="Multiple on Invested Capital — how many times the investment returns."
+                  format={(v) => `${v}×`} suffix="×"
+                  tooltip="Multiple on Invested Capital."
                 />
               </div>
             </div>
