@@ -212,7 +212,6 @@ const Index = () => {
                   format={(v) => `${v}×`} suffix="×"
                   tooltip="Multiple on Invested Capital."
                 />
-                />
               </div>
             </div>
 
