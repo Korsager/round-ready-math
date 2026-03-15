@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import rocketImg from "@/assets/rocket-launch.png";
+import HeatmapGrid from "@/components/HeatmapGrid";
 
 /* ── Calc Engine (inline) ── */
 interface Inputs {
@@ -347,6 +348,11 @@ const Index = () => {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* IRR Heatmap */}
+        <div className="mt-8 animate-fade-up" style={{ animationDelay: "0.4s" }}>
+          <HeatmapGrid inputs={{ ...inputs, shares: 0 }} />
         </div>
       </main>
 
