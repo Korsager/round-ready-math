@@ -70,7 +70,7 @@ const ResultsDashboard: React.FC<Props> = ({ results, inputs }) => {
           <Row label="Required Exit Value" tooltip="The company sale/valuation needed at exit for investors to hit their target return rate." value={fmtM(results.requiredExitValue)} highlight="accent" />
           <Row label="Required MOIC" tooltip="Multiple on Invested Capital needed to hit target IRR." value={`${results.requiredMoic.toFixed(1)}x`} />
           <div className="h-px bg-border my-1" />
-          <Row label="Your MOIC IRR" tooltip="IRR at your chosen MOIC and timeline." value={`${results.calculatedIrr.toFixed(1)}%`} highlight={status === "great" ? "primary" : status === "tight" ? "warning" : "danger"} />
+          <Row label="Your IRR" tooltip="IRR at your chosen MOIC and timeline." value={`${results.calculatedIrr.toFixed(1)}%`} highlight={status === "great" ? "primary" : status === "tight" ? "warning" : "danger"} />
         </div>
         <div className={`mt-4 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest text-center ${cfg.bg} ${cfg.text}`}>
           {cfg.label}
