@@ -128,14 +128,12 @@ const InputsSection: React.FC<Props> = ({ inputs, update, reset }) => {
           parse={parseMoney}
         />
         <FieldInput
-          label="Pre-Money Valuation"
-          tooltip="Your company's value before new cash arrives (what current owners 'own')."
-          value={inputs.preMoney}
-          min={2_000_000} max={50_000_000} step={500_000}
-          onChange={v => update("preMoney", v)}
-          prefix="$"
-          format={fmtMoney}
-          parse={parseMoney}
+          label="Dilution"
+          tooltip="Percentage of the company new investors will own after this round."
+          value={inputs.dilutionPct}
+          onChange={v => update("dilutionPct", v)}
+          suffix="%"
+          format={v => v.toString()}
         />
         <FieldInput
           label="Fully Diluted Shares"

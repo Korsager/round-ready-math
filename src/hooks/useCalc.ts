@@ -32,12 +32,13 @@ export interface CalcResults {
 }
 
 export function compute(inputs: CalcInputs): CalcResults {
-  const { raise, preMoney, shares, targetIrr, yearsToExit, targetMoic } = inputs;
+  const { raise, dilutionPct, shares, targetIrr, yearsToExit, targetMoic } = inputs;
   const irrDecimal = targetIrr / 100;
+  const investorOwnership = dilutionPct / 100;
 
-  const postMoney = preMoney + raise;
+  const postMoney = investorOwnership > 0 ? raise / investorOwnership : 0;
+  const preMoney = postMoney - raise;
   const pricePerShare = shares > 0 ? preMoney / shares : 0;
-  const investorOwnership = postMoney > 0 ? raise / postMoney : 0;
   const dilution = investorOwnership;
 
   // Required exit for investors to hit target IRR
