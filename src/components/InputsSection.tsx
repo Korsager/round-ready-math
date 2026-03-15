@@ -48,9 +48,11 @@ const FieldInput: React.FC<FieldInputProps> = ({
       setLocalValue(format ? format(value) : value.toString());
       return;
     }
-    const clamped = Math.min(max, Math.max(min, parsed));
-    const stepped = Math.round(clamped / step) * step;
-    onChange(stepped);
+    if (parsed <= 0) {
+      setLocalValue(format ? format(value) : value.toString());
+      return;
+    }
+    onChange(parsed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -85,10 +87,6 @@ const FieldInput: React.FC<FieldInputProps> = ({
             {suffix}
           </span>
         )}
-      </div>
-      <div className="flex justify-between mt-1">
-        <span className="text-[10px] text-muted-foreground">Min: {prefix}{format ? format(min) : min.toLocaleString()}{suffix}</span>
-        <span className="text-[10px] text-muted-foreground">Max: {prefix}{format ? format(max) : max.toLocaleString()}{suffix}</span>
       </div>
     </div>
   );
