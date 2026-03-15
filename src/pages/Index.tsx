@@ -352,7 +352,7 @@ const Index = () => {
 
         {/* IRR Heatmap */}
         <div className="mt-8 animate-fade-up" style={{ animationDelay: "0.4s" }}>
-          <HeatmapGrid inputs={{ ...inputs, targetIrr: inputs.targetIrr, yearsToExit: inputs.yearsToExit, targetMoic: inputs.targetMoic } as any} />
+          <HeatmapGrid inputs={{ ...inputs, shares: 0 }} />
         </div>
       </main>
 
