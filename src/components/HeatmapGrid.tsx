@@ -10,10 +10,10 @@ const MOICS = [1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
 const YEARS = [1, 2, 3, 4, 5, 6, 7, 8, 10];
 
 function getCellColor(irr: number, target: number): string {
-  if (irr >= target) return "bg-primary/90 text-primary-foreground";
-  if (irr >= target * 0.85) return "bg-primary/20 text-primary";
-  if (irr >= target * 0.7) return "bg-warning-light text-warning-foreground";
-  return "bg-muted text-muted-foreground";
+  if (irr >= target) return "bg-success text-success-foreground";
+  if (irr >= target * 0.85) return "bg-success/30 text-success-foreground";
+  if (irr >= target * 0.7) return "bg-destructive/30 text-destructive";
+  return "bg-destructive/80 text-destructive-foreground";
 }
 
 const HeatmapGrid: React.FC<Props> = ({ inputs }) => {
