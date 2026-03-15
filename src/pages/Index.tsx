@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Rocket, ArrowUpRight, TrendingUp, DollarSign, PieChart,
   BarChart3, Target, RotateCcw, ChevronDown, ChevronUp
