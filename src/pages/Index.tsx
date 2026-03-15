@@ -181,41 +181,37 @@ const Index = () => {
               <h3 className="text-base font-semibold text-foreground mb-5 flex items-center gap-2">
                 <BarChart3 size={16} className="text-primary" /> Adjust Your Round
               </h3>
-              <div className="space-y-5">
-                <SliderInput
+              <div className="space-y-0">
+                <ManualInput
                   label="Raise Amount" value={inputs.raise}
                   onChange={(v) => update("raise", v)}
-                  min={100_000} max={20_000_000} step={100_000}
                   format={fmtM}
-                  tooltip="How much capital you're raising in this round."
+                  tooltip="How much capital you're raising. Try '2M' or '500K'."
                 />
-                <SliderInput
+                <ManualInput
                   label="Dilution %" value={inputs.dilutionPct}
                   onChange={(v) => update("dilutionPct", v)}
-                  min={1} max={50} step={0.5}
-                  format={(v) => `${v}%`}
-                  tooltip="Percentage of ownership you give to investors."
+                  format={(v) => `${v}%`} suffix="%"
+                  tooltip="Ownership % you give to investors."
                 />
-                <SliderInput
+                <ManualInput
                   label="Target IRR" value={inputs.targetIrr}
                   onChange={(v) => update("targetIrr", v)}
-                  min={5} max={100} step={1}
-                  format={(v) => `${v}%`}
+                  format={(v) => `${v}%`} suffix="%"
                   tooltip="Annual return rate investors expect."
                 />
-                <SliderInput
+                <ManualInput
                   label="Years to Exit" value={inputs.yearsToExit}
-                  onChange={(v) => update("yearsToExit", v)}
-                  min={1} max={12} step={1}
-                  format={(v) => `${v}yr`}
-                  tooltip="Expected time horizon until exit/liquidity event."
+                  onChange={(v) => update("yearsToExit", Math.round(v))}
+                  format={(v) => `${v}yr`} suffix="yr"
+                  tooltip="Expected time until exit/liquidity."
                 />
-                <SliderInput
+                <ManualInput
                   label="Your MOIC" value={inputs.targetMoic}
                   onChange={(v) => update("targetMoic", v)}
-                  min={1} max={20} step={0.5}
-                  format={(v) => `${v}×`}
-                  tooltip="Multiple on Invested Capital — how many times the investment returns."
+                  format={(v) => `${v}×`} suffix="×"
+                  tooltip="Multiple on Invested Capital."
+                />
                 />
               </div>
             </div>
