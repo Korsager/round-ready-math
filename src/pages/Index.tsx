@@ -269,25 +269,6 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Round Efficiency */}
-            <div className="bg-card rounded-2xl border border-border p-5 shadow-md hover:shadow-lg transition-shadow animate-fade-up" style={{ animationDelay: "0.25s" }}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-semibold text-foreground">Round Efficiency</h3>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${effColor}`}>{effLabel}</span>
-              </div>
-              <div className="flex items-end gap-3 mb-3">
-                <span className="text-4xl font-bold text-foreground tabular-nums">{efficiencyScore}%</span>
-              </div>
-              <div className="relative w-full h-3 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700 ease-out"
-                  style={{ width: `${efficiencyScore}%` }}
-                />
-              </div>
-              <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
-                <span>0%</span><span>100%</span>
-              </div>
-            </div>
 
             {/* Key Metrics Grid */}
             <div className="grid grid-cols-2 gap-3 animate-fade-up" style={{ animationDelay: "0.3s" }}>
