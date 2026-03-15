@@ -13,9 +13,9 @@ interface FieldInputProps {
   label: string;
   tooltip: string;
   value: number;
-  min: number;
-  max: number;
-  step: number;
+  min?: number;
+  max?: number;
+  step?: number;
   onChange: (v: number) => void;
   format?: (v: number) => string;
   parse?: (s: string) => number;
