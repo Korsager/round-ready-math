@@ -19,7 +19,7 @@ const Index = () => {
       `Fundraise Math Results`,
       `─────────────────────`,
       `Raising: ${fmtM(inputs.raise)}`,
-      `Pre-Money: ${fmtM(inputs.preMoney)}`,
+      `Dilution: ${inputs.dilutionPct}%`,
       `Post-Money: ${fmtM(results.postMoney)}`,
       `Investor Ownership: ${fmtPct(results.investorOwnership)}`,
       `Price/Share: $${results.pricePerShare.toFixed(2)}`,

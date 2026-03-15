@@ -26,7 +26,7 @@ const InsightsBox: React.FC<Props> = ({ results, inputs }) => {
       {open && (
         <div className="px-6 pb-5 space-y-3 text-sm text-muted-foreground animate-fade-in">
           <p>
-            At a <span className="font-semibold text-foreground">{fmtM(inputs.preMoney)}</span> pre-money,
+            At <span className="font-semibold text-foreground">{inputs.dilutionPct}%</span> dilution,
             investors need ~<span className="font-semibold text-primary">{results.requiredMoic.toFixed(1)}x</span> in{" "}
             <span className="font-semibold text-foreground">{inputs.yearsToExit}</span> years to hit{" "}
             <span className="font-semibold text-primary">{inputs.targetIrr}% IRR</span> — is that realistic for your stage?

@@ -52,12 +52,12 @@ const ResultsDashboard: React.FC<Props> = ({ results, inputs }) => {
           Valuation & Dilution
         </h3>
         <div className="space-y-3">
-          <Row label="Pre-Money" tooltip="Your company's value before new cash arrives." value={fmtM(inputs.preMoney)} />
-          <Row label="Post-Money" tooltip="Company value after investment = pre-money + cash raised." value={fmtM(results.postMoney)} />
+          <Row label="Pre-Money" tooltip="Your company's value before new cash arrives (derived from raise and dilution)." value={fmtM(results.postMoney - inputs.raise)} />
+          <Row label="Post-Money" tooltip="Company value after investment = raise / dilution %." value={fmtM(results.postMoney)} />
           <Row label="Price Per Share" tooltip="What investors pay per share in this round." value={fmtDollar(results.pricePerShare)} />
           <div className="h-px bg-border my-1" />
           <Row label="Investor Ownership" tooltip="Percentage of the company new investors get." value={fmtPct(results.investorOwnership)} highlight="primary" />
-          <Row label="Your Dilution" tooltip="How much existing owners' percentage shrinks (aim ~15–25% per round)." value={fmtPct(results.dilution)} />
+          <Row label="Your Dilution" tooltip="How much existing owners' percentage shrinks." value={fmtPct(results.dilution)} />
         </div>
       </div>
 
