@@ -97,34 +97,34 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Greeting */}
-        <div className="mb-8 flex items-start justify-between gap-4 animate-fade-up">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
-              <Rocket className="text-primary" size={26} />
-              Fundraise Math Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-1">Adjust your round → see valuation, dilution, IRR & required exit instantly</p>
-          </div>
-          <button onClick={reset} className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-md hover:bg-secondary border border-border">
-            <RotateCcw size={14} /> Reset
-          </button>
+        <div className="mb-6 animate-fade-up">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
+            <Rocket className="text-primary" size={26} />
+            Fundraise Math Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">Adjust your round → see valuation, dilution, IRR & required exit instantly</p>
         </div>
+
+        <AssumptionsBanner>
+          Raising {fmtM(inputs.raise)} at {inputs.dilutionPct}% dilution · {inputs.targetIrr}% target IRR over {inputs.yearsToExit}yr
+        </AssumptionsBanner>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-card rounded-2xl border border-border p-5 shadow-md animate-fade-up" style={{ animationDelay: "0.1s" }}>
               <h3 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
-                <BarChart3 size={16} className="text-primary" /> Adjust Your Round
+                <BarChart3 size={16} className="text-primary" /> Your Round
               </h3>
-              <p className="text-[11px] text-muted-foreground mb-4">Click any value to edit. Try shorthand like "2M" or "500K".</p>
+              <p className="text-[11px] text-muted-foreground mb-4">Edit any of these on the Assumptions page.</p>
               <div className="space-y-0">
-                <ManualInput label="Raise Amount" value={inputs.raise} onChange={(v) => update("raise", v)} format={fmtM} tooltip="How much capital you're raising." />
-                <ManualInput label="Pre-Money Valuation" value={r.preMoney} onChange={(v) => { if (v > 0 && inputs.raise > 0) update("dilutionPct", +((inputs.raise / (v + inputs.raise)) * 100).toFixed(2)); }} format={fmtM} tooltip="Editing this recalculates dilution." />
-                <ManualInput label="Dilution %" value={inputs.dilutionPct} onChange={(v) => update("dilutionPct", v)} format={(v) => `${v}%`} suffix="%" tooltip="Ownership % you give to investors." />
-                <ManualInput label="Target IRR" value={inputs.targetIrr} onChange={(v) => update("targetIrr", v)} format={(v) => `${v}%`} suffix="%" tooltip="Annual return rate investors expect." />
-                <ManualInput label="Years to Exit" value={inputs.yearsToExit} onChange={(v) => update("yearsToExit", Math.round(v))} format={(v) => `${v}yr`} suffix="yr" tooltip="Years until exit/liquidity." />
-                <ManualInput label="Your MOIC" value={inputs.targetMoic} onChange={(v) => update("targetMoic", v)} format={(v) => `${v}×`} suffix="×" tooltip="Multiple on Invested Capital." />
+                <ReadOnlyRow label="Raise Amount" value={fmtM(inputs.raise)} tooltip="How much capital you're raising." />
+                <ReadOnlyRow label="Pre-Money Valuation" value={fmtM(r.preMoney)} tooltip="Implied from raise & dilution." />
+                <ReadOnlyRow label="Post-Money Valuation" value={fmtM(r.postMoney)} tooltip="Pre-money + raise." />
+                <ReadOnlyRow label="Dilution %" value={`${inputs.dilutionPct}%`} tooltip="Ownership % to investors." />
+                <ReadOnlyRow label="Target IRR" value={`${inputs.targetIrr}%`} tooltip="Annual return rate investors expect." />
+                <ReadOnlyRow label="Years to Exit" value={`${inputs.yearsToExit}yr`} tooltip="Years until exit/liquidity." />
+                <ReadOnlyRow label="Your MOIC" value={`${inputs.targetMoic}×`} tooltip="Multiple on Invested Capital." />
               </div>
             </div>
 
