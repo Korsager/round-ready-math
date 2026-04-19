@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { Upload, FilePlus2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAssumptions, DEFAULT_ASSUMPTIONS, type Assumptions } from "@/lib/assumptions";
+import { useAssumptions, type Assumptions } from "@/lib/assumptions";
 import { DEFAULT_INPUTS } from "@/lib/presets";
 import { DEFAULT_CASHFLOW } from "@/lib/cashflow";
 import { DEFAULT_FUNDRAISE } from "@/lib/assumptions";
+import { savePricingStrategy, blankPricingStrategy } from "@/lib/pricingStrategy";
 
 function mergeAssumptions(parsed: any): Assumptions {
   return {
@@ -22,6 +23,7 @@ export default function UploadJson() {
 
   const startFresh = () => {
     reset();
+    savePricingStrategy(blankPricingStrategy());
     navigate("/course/pricing");
   };
 
@@ -34,6 +36,9 @@ export default function UploadJson() {
       setFundraise(merged.fundraise);
       setForecast(merged.forecast);
       setCashflow(merged.cashflow);
+      if (parsed?.pricing) {
+        savePricingStrategy({ ...blankPricingStrategy(), ...parsed.pricing });
+      }
       navigate("/course/pricing");
     } catch (e) {
       setError("Could not read that file. Make sure it's a valid plan JSON exported from this tool.");

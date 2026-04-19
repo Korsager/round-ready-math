@@ -2,11 +2,13 @@ import jsPDF from "jspdf";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
+import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 
-export function exportPdf(a: Assumptions) {
+export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy) {
+  const pricing = pricingArg ?? loadPricingStrategy();
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = doc.internal.pageSize.getWidth();
   const M = 56;
@@ -23,14 +25,17 @@ export function exportPdf(a: Assumptions) {
   const base = runScenario(a.forecast, "base");
   const cf = simulateCashflow({ ...a.cashflow, forecast: a.forecast }, 36);
 
+  const ensureRoom = (need: number) => {
+    if (y + need > 740) { doc.addPage(); y = M; }
+  };
   const title = (t: string) => {
-    if (y > 720) { doc.addPage(); y = M; }
+    ensureRoom(40);
     doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(17, 24, 39);
     doc.text(t, M, y); y += 22;
     doc.setDrawColor(229, 231, 235); doc.line(M, y - 10, W - M, y - 10);
   };
   const row = (label: string, value: string) => {
-    if (y > 740) { doc.addPage(); y = M; }
+    ensureRoom(18);
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(107, 114, 128);
     doc.text(label, M, y);
     doc.setFont("helvetica", "bold"); doc.setTextColor(17, 24, 39);
@@ -38,10 +43,24 @@ export function exportPdf(a: Assumptions) {
     y += 16;
   };
   const para = (t: string) => {
-    if (y > 720) { doc.addPage(); y = M; }
+    if (!t) return;
     doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(75, 85, 99);
     const lines = doc.splitTextToSize(t, W - M * 2);
+    ensureRoom(lines.length * 13 + 6);
     doc.text(lines, M, y); y += lines.length * 13 + 6;
+  };
+  const subhead = (t: string) => {
+    ensureRoom(20);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(17, 24, 39);
+    doc.text(t, M, y); y += 14;
+  };
+  const labeledBlock = (label: string, value?: string) => {
+    if (!value || !value.trim()) return;
+    ensureRoom(28);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(107, 114, 128);
+    doc.text(label.toUpperCase(), M, y); y += 12;
+    para(value);
+    y += 2;
   };
 
   // Cover
@@ -52,6 +71,31 @@ export function exportPdf(a: Assumptions) {
 
   para("This report covers your pricing, revenue forecast, fundraising math, and cashflow runway as configured in the Founders Toolkit.");
   y += 10;
+
+  // Pricing strategy
+  title("Pricing strategy");
+  labeledBlock("Business model", pricing.context.businessModel);
+  labeledBlock("Customer segments", pricing.context.segments);
+  labeledBlock("Current pricing", pricing.context.currentPricing);
+  labeledBlock("Value metric", pricing.valueMetric.name);
+  labeledBlock("Why this metric", pricing.valueMetric.rationale);
+  if (pricing.models.length) row("Pricing model(s)", pricing.models.join(", "));
+  if (pricing.annualDiscountPct?.trim()) row("Annual discount", `${pricing.annualDiscountPct}%`);
+  labeledBlock("Model notes", pricing.modelNotes);
+
+  pricing.tiers.forEach((t) => {
+    if (!t.name && !t.monthlyPrice && !t.features) return;
+    ensureRoom(60);
+    subhead(`Tier — ${t.name || "Untitled"}`);
+    if (t.job?.trim()) row("Job to be done", t.job);
+    if (t.monthlyPrice?.trim()) row("Monthly price", t.monthlyPrice);
+    if (t.annualPrice?.trim()) row("Annual price", t.annualPrice);
+    labeledBlock("Features", t.features);
+  });
+
+  labeledBlock("Anchoring notes", pricing.anchoringNotes);
+  labeledBlock("Upgrade triggers", pricing.upgradeTriggers);
+  y += 6;
 
   // Fundraising
   title("Fundraising");
@@ -97,7 +141,7 @@ export function exportPdf(a: Assumptions) {
   doc.addPage(); y = M;
   title("Notes");
   para("All figures are illustrative and based on the assumptions you entered. Validate against benchmarks (SaaS Capital, OpenView, Bessemer State of the Cloud) before sharing with investors.");
-  para("Pricing strategy details (value metric, tiers, model) live inside the Pricing step in the toolkit. Export the JSON file to back up your full plan.");
+  para("Export the JSON file from the toolkit to back up your full plan including pricing strategy, and re-import it any time to continue editing.");
 
   doc.save("fundraise-plan.pdf");
 }
