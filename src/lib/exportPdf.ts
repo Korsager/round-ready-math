@@ -7,7 +7,12 @@ import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 
-export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy) {
+export interface ExportCharts {
+  forecastImg?: string;
+  cashflowImg?: string;
+}
+
+export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
   const pricing = pricingArg ?? loadPricingStrategy();
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = doc.internal.pageSize.getWidth();
