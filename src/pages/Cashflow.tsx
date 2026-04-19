@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import NavBar from "@/components/NavBar";
-import CashflowControls from "@/components/cashflow/CashflowControls";
+import AssumptionsBanner from "@/components/AssumptionsBanner";
 import CashflowChart from "@/components/cashflow/CashflowChart";
 import RunwayCards from "@/components/cashflow/RunwayCards";
 import CashflowTable from "@/components/cashflow/CashflowTable";
@@ -12,14 +12,8 @@ import { toPng } from "html-to-image";
 import { fmtDollars } from "@/lib/format";
 
 export default function Cashflow() {
-  const { assumptions, setCashflow, setForecast } = useAssumptions();
+  const { assumptions } = useAssumptions();
   const inputs: CashflowInputs = { ...assumptions.cashflow, forecast: assumptions.forecast };
-  const setInputs = (next: CashflowInputs | ((p: CashflowInputs) => CashflowInputs)) => {
-    const resolved = typeof next === "function" ? (next as (p: CashflowInputs) => CashflowInputs)(inputs) : next;
-    const { forecast, ...cash } = resolved;
-    setCashflow(cash);
-    setForecast(forecast);
-  };
   const result = useMemo(() => simulateCashflow(inputs, 36), [inputs]);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -38,12 +32,14 @@ export default function Cashflow() {
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
       <NavBar />
-      <header className="max-w-[1100px] mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-2">
+      <header className="max-w-[1100px] mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-3">
         <h1 className="text-[22px] sm:text-[28px] font-semibold text-[#111827] leading-tight">Cashflow & Runway</h1>
         <p className="text-[13px] sm:text-[14px] text-[#6B7280] mt-1">Tie revenue, costs, and your raise together. See exactly when you run out — and whether the round actually saves you.</p>
       </header>
-      <CashflowControls inputs={inputs} onChange={setInputs} />
-      <main className="max-w-[1100px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <AssumptionsBanner>
+        Cash {fmtDollars(inputs.startingCash)} · Raise {fmtDollars(inputs.fundraiseAmount)} in {inputs.monthsUntilRaise} mo · Burn {fmtDollars(inputs.startingBurn)}/mo
+      </AssumptionsBanner>
+      <main className="max-w-[1100px] mx-auto px-3 sm:px-4 py-2 sm:py-4 space-y-4 sm:space-y-6">
         <div ref={exportRef} className="space-y-4 sm:space-y-6">
           <RunwayCards result={result} monthsUntilRaise={inputs.monthsUntilRaise} />
           <CashflowChart result={result} monthsUntilRaise={inputs.monthsUntilRaise} />
