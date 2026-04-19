@@ -18,7 +18,7 @@ const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRa
   }));
 
   return (
-    <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+    <div ref={ref} className="bg-white rounded-xl border border-[#E5E7EB] p-5">
       <h3 className="text-[15px] font-semibold text-[#111827] mb-1">Cash balance over 36 months</h3>
       <p className="text-[12px] text-[#6B7280] mb-4">Blue area = cash on hand. Red bars = monthly burn. Green bars = monthly profit. Dashed line = raise closes.</p>
       <div style={{ width: "100%", height: 360 }}>
@@ -55,4 +55,7 @@ const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRa
       </div>
     </div>
   );
-}
+});
+
+CashflowChart.displayName = "CashflowChart";
+export default CashflowChart;
