@@ -3,6 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { PRESETS } from "@/lib/presets";
 import type { ForecastInputs } from "@/lib/forecast";
+import { deriveAnnualNRR } from "@/lib/forecast";
 import { fmtDollars } from "@/lib/format";
 
 interface Props {
@@ -16,8 +17,10 @@ const fields: { key: keyof ForecastInputs; label: string; min: number; max: numb
   { key: "startingMRR", label: "Starting MRR", min: 1000, max: 500000, step: 1000, format: fmtDollars },
   { key: "monthlyNewBookings", label: "Monthly new bookings", min: 200, max: 100000, step: 100, format: fmtDollars },
   { key: "monthlyGrowthRate", label: "Monthly growth rate", min: 0, max: 15, step: 0.5, format: (v) => `${v}%` },
-  { key: "annualNRR", label: "Annual NRR", min: 70, max: 130, step: 1, format: (v) => `${v}%` },
   { key: "hiringLagDays", label: "Hiring ramp", min: 0, max: 180, step: 15, format: (v) => `${v} days` },
+  { key: "monthlyGrossChurnRate", label: "Gross churn / mo", min: 0, max: 10, step: 0.1, format: (v) => `${v.toFixed(1)}%` },
+  { key: "monthlyDowngradeRate", label: "Downgrades / mo", min: 0, max: 5, step: 0.1, format: (v) => `${v.toFixed(1)}%` },
+  { key: "monthlyExpansionRate", label: "Expansion / mo", min: 0, max: 10, step: 0.1, format: (v) => `${v.toFixed(1)}%` },
 ];
 
 export default function ControlPanel({ inputs, onChange, onStressTest, stressing }: Props) {
@@ -27,6 +30,9 @@ export default function ControlPanel({ inputs, onChange, onStressTest, stressing
     const preset = PRESETS.find((p) => p.id === id);
     if (preset?.values) onChange(preset.values);
   };
+
+  const derivedNRR = deriveAnnualNRR(inputs);
+  const nrrPositive = derivedNRR >= 100;
 
   return (
     <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border-b border-[#E5E7EB] py-4">
@@ -51,9 +57,19 @@ export default function ControlPanel({ inputs, onChange, onStressTest, stressing
           >
             {stressing ? "Stress testing…" : "Stress test"}
           </Button>
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-medium md:ml-auto"
+            style={{
+              background: nrrPositive ? "#D1FAE5" : "#FEE2E2",
+              color: nrrPositive ? "#065F46" : "#991B1B",
+            }}
+            title="Derived from gross churn, downgrades and expansion"
+          >
+            Derived annual NRR: {derivedNRR.toFixed(0)}%
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {fields.map((f) => (
             <div key={f.key}>
               <div className="flex justify-between items-baseline mb-2">

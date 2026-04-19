@@ -2,8 +2,11 @@ export interface ForecastInputs {
   startingMRR: number;
   monthlyNewBookings: number;
   monthlyGrowthRate: number;
-  annualNRR: number;
+  annualNRR: number; // derived/display only; kept for compatibility
   hiringLagDays: number;
+  monthlyGrossChurnRate: number; // % of MRR lost to cancellations
+  monthlyDowngradeRate: number; // % of MRR lost to downgrades
+  monthlyExpansionRate: number; // % of MRR gained from expansion
 }
 
 export interface MonthlyData {
@@ -12,7 +15,9 @@ export interface MonthlyData {
   arr: number;
   retainedMRR: number;
   newBookings: number;
-  churnLoss: number;
+  grossChurnLoss: number;
+  downgradeLoss: number;
+  churnLoss: number; // total = gross + downgrade (back-compat)
   expansionGain: number;
 }
 
@@ -24,10 +29,18 @@ export interface ScenarioResult {
   endingARR: number;
 }
 
+export function deriveAnnualNRR(inputs: Pick<ForecastInputs, "monthlyGrossChurnRate" | "monthlyDowngradeRate" | "monthlyExpansionRate">): number {
+  const monthlyFactor = 1 - inputs.monthlyGrossChurnRate / 100 - inputs.monthlyDowngradeRate / 100 + inputs.monthlyExpansionRate / 100;
+  return Math.pow(Math.max(0.0001, monthlyFactor), 12) * 100;
+}
+
 export function simulate(inputs: ForecastInputs, horizonMonths = 36): MonthlyData[] {
-  const { startingMRR, monthlyNewBookings, monthlyGrowthRate, annualNRR, hiringLagDays } = inputs;
+  const { startingMRR, monthlyNewBookings, monthlyGrowthRate, hiringLagDays,
+    monthlyGrossChurnRate, monthlyDowngradeRate, monthlyExpansionRate } = inputs;
   const g = monthlyGrowthRate / 100;
-  const monthlyNrrFactor = Math.pow(annualNRR / 100, 1 / 12);
+  const grossR = monthlyGrossChurnRate / 100;
+  const downR = monthlyDowngradeRate / 100;
+  const expR = monthlyExpansionRate / 100;
   const rampMonths = Math.max(hiringLagDays / 30, 0.01);
 
   const months: MonthlyData[] = [{
@@ -36,6 +49,8 @@ export function simulate(inputs: ForecastInputs, horizonMonths = 36): MonthlyDat
     arr: startingMRR * 12,
     retainedMRR: startingMRR,
     newBookings: 0,
+    grossChurnLoss: 0,
+    downgradeLoss: 0,
     churnLoss: 0,
     expansionGain: 0,
   }];
@@ -44,9 +59,10 @@ export function simulate(inputs: ForecastInputs, horizonMonths = 36): MonthlyDat
   for (let t = 1; t <= horizonMonths; t++) {
     const rampCompletion = Math.min(1, t / rampMonths);
     const prev = months[t - 1].mrr;
-    const retainedMRR = prev * monthlyNrrFactor;
-    const churnLoss = Math.max(0, prev - retainedMRR);
-    const expansionGain = Math.max(0, retainedMRR - prev);
+    const grossChurnLoss = prev * grossR;
+    const downgradeLoss = prev * downR;
+    const expansionGain = prev * expR;
+    const retainedMRR = prev - grossChurnLoss - downgradeLoss + expansionGain;
     const newBookings = prevBookings * (1 + g) * rampCompletion;
     prevBookings = prevBookings * (1 + g);
     const mrr = retainedMRR + newBookings;
@@ -56,7 +72,9 @@ export function simulate(inputs: ForecastInputs, horizonMonths = 36): MonthlyDat
       arr: mrr * 12,
       retainedMRR,
       newBookings,
-      churnLoss,
+      grossChurnLoss,
+      downgradeLoss,
+      churnLoss: grossChurnLoss + downgradeLoss,
       expansionGain,
     });
   }
@@ -64,9 +82,9 @@ export function simulate(inputs: ForecastInputs, horizonMonths = 36): MonthlyDat
 }
 
 export const SCENARIOS = {
-  bull: { growthMult: 1.5, nrrAdd: 10, rampMult: 0.7, color: "#0A9E5E", label: "Bull" },
-  base: { growthMult: 1.0, nrrAdd: 0, rampMult: 1.0, color: "#6366F1", label: "Base" },
-  bear: { growthMult: 0.5, nrrAdd: -15, rampMult: 1.4, color: "#EF4444", label: "Bear" },
+  bull: { growthMult: 1.5, churnMult: 0.6, downMult: 0.6, expMult: 1.4, rampMult: 0.7, color: "#0A9E5E", label: "Bull" },
+  base: { growthMult: 1.0, churnMult: 1.0, downMult: 1.0, expMult: 1.0, rampMult: 1.0, color: "#6366F1", label: "Base" },
+  bear: { growthMult: 0.5, churnMult: 1.8, downMult: 1.6, expMult: 0.5, rampMult: 1.4, color: "#EF4444", label: "Bear" },
 } as const;
 
 export function runScenario(inputs: ForecastInputs, scenario: keyof typeof SCENARIOS): ScenarioResult {
@@ -74,7 +92,9 @@ export function runScenario(inputs: ForecastInputs, scenario: keyof typeof SCENA
   const adjusted: ForecastInputs = {
     ...inputs,
     monthlyGrowthRate: inputs.monthlyGrowthRate * s.growthMult,
-    annualNRR: inputs.annualNRR + s.nrrAdd,
+    monthlyGrossChurnRate: inputs.monthlyGrossChurnRate * s.churnMult,
+    monthlyDowngradeRate: inputs.monthlyDowngradeRate * s.downMult,
+    monthlyExpansionRate: inputs.monthlyExpansionRate * s.expMult,
     hiringLagDays: inputs.hiringLagDays * s.rampMult,
   };
   const months = simulate(adjusted, 36);
@@ -105,17 +125,18 @@ export function buildWaterfall(baseMonths: MonthlyData[]): WaterfallData {
   const startingARR = startMRR * 12;
   const endingARR = endMRR * 12;
 
-  let totalChurnLoss = 0;
-  let totalNewBookings = 0;
+  let totalGross = 0, totalDown = 0, totalExp = 0, totalNew = 0;
   for (let t = startIdx + 1; t <= endIdx; t++) {
-    totalChurnLoss += baseMonths[t].churnLoss;
-    totalNewBookings += baseMonths[t].newBookings;
+    totalGross += baseMonths[t].grossChurnLoss;
+    totalDown += baseMonths[t].downgradeLoss;
+    totalExp += baseMonths[t].expansionGain;
+    totalNew += baseMonths[t].newBookings;
   }
-  const churnImpact = totalChurnLoss * 12;
-  const grossChurn = churnImpact * 0.7;
-  const downgrades = churnImpact * 0.3;
-  const newBusiness = totalNewBookings * 12;
-  const expansion = Math.max(0, endingARR - startingARR + grossChurn + downgrades - newBusiness);
+  // Annualize the 12-month flow values (sum is already 12 months of MRR-flow → multiply by 1, but to express as ARR-equivalent contribution use *12-equivalent already covered by summing 12 months of MRR change? Use *12 to convert MRR-flow-sum to ARR contribution comparable to startingARR scale)
+  const grossChurn = totalGross * 12 / 12 * 12; // = totalGross * 12 (flows accumulated → ARR scale)
+  const downgrades = totalDown * 12;
+  const expansion = totalExp * 12;
+  const newBusiness = totalNew * 12;
   const nrr = ((startingARR - grossChurn - downgrades + expansion) / startingARR) * 100;
   return { startingARR, grossChurn, downgrades, expansion, newBusiness, endingARR, nrr };
 }
@@ -125,10 +146,30 @@ export function buildMatrix(inputs: ForecastInputs) {
   const growCols = [2, 3, 4, 5, 6, 7, 8, 9, 10];
   const values: number[][] = [];
   let min = Infinity, max = -Infinity;
+
+  // Preserve user's mix of gross/downgrade/expansion; scale to hit target annual NRR.
+  const baseGross = inputs.monthlyGrossChurnRate;
+  const baseDown = inputs.monthlyDowngradeRate;
+  const baseExp = inputs.monthlyExpansionRate;
+
   for (const nrr of nrrRows) {
+    const targetMonthlyFactor = Math.pow(nrr / 100, 1 / 12);
+    // We want: 1 - gross - down + exp = targetMonthlyFactor
+    // Keep ratios: gross = k*baseGross, down = k*baseDown, exp = k*baseExp doesn't preserve sign net.
+    // Solve net delta scale: let net = -baseGross - baseDown + baseExp (in percent points / 100 not yet).
+    // Use percent points
+    const baseNet = -baseGross - baseDown + baseExp; // % per month
+    const targetNet = (targetMonthlyFactor - 1) * 100; // % per month
+    const scale = baseNet === 0 ? 1 : targetNet / baseNet;
     const row: number[] = [];
     for (const g of growCols) {
-      const months = simulate({ ...inputs, annualNRR: nrr, monthlyGrowthRate: g }, 36);
+      const months = simulate({
+        ...inputs,
+        monthlyGrowthRate: g,
+        monthlyGrossChurnRate: baseGross * scale,
+        monthlyDowngradeRate: baseDown * scale,
+        monthlyExpansionRate: baseExp * scale,
+      }, 36);
       const v = months[36].mrr;
       row.push(v);
       if (v < min) min = v;
