@@ -7,7 +7,12 @@ import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 
-export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy) {
+export interface ExportCharts {
+  forecastImg?: string;
+  cashflowImg?: string;
+}
+
+export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
   const pricing = pricingArg ?? loadPricingStrategy();
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = doc.internal.pageSize.getWidth();
@@ -125,6 +130,16 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy) {
   row("Ending ARR (month 36)", fmtUsd(base.endingARR));
   y += 12;
 
+  // Forecast chart
+  if (charts?.forecastImg) {
+    const props = doc.getImageProperties(charts.forecastImg);
+    const imgW = W - M * 2;
+    const imgH = (props.height * imgW) / props.width;
+    if (y + imgH > 740) { doc.addPage(); y = M; }
+    doc.addImage(charts.forecastImg, "PNG", M, y, imgW, imgH, undefined, "FAST");
+    y += imgH + 12;
+  }
+
   // Cashflow
   title("Cashflow & runway");
   row("Starting cash", fmtUsd(a.cashflow.startingCash));
@@ -136,6 +151,16 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy) {
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth}` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
+  y += 12;
+
+  if (charts?.cashflowImg) {
+    const props = doc.getImageProperties(charts.cashflowImg);
+    const imgW = W - M * 2;
+    const imgH = (props.height * imgW) / props.width;
+    if (y + imgH > 740) { doc.addPage(); y = M; }
+    doc.addImage(charts.cashflowImg, "PNG", M, y, imgW, imgH, undefined, "FAST");
+    y += imgH + 12;
+  }
 
   // Footer note
   doc.addPage(); y = M;

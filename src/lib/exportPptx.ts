@@ -13,7 +13,12 @@ const ACCENT = "F96167";
 const INK = "111827";
 const MUTED = "6B7280";
 
-export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy) {
+export interface ExportCharts {
+  forecastImg?: string;
+  cashflowImg?: string;
+}
+
+export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
   const pricing = pricingArg ?? loadPricingStrategy();
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
@@ -132,6 +137,15 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy) {
     { label: "Ending ARR", value: fmtUsd(base.endingARR) },
   ], `Base case grows from ${fmtUsd(a.forecast.startingMRR)} to ${fmtUsd(base.endingMRR)} MRR over 36 months.`);
 
+  if (charts?.forecastImg) {
+    const cs = pres.addSlide();
+    cs.background = { color: "FFFFFF" };
+    cs.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
+    cs.addText("REVENUE · CHART", { x: 0.7, y: 0.4, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
+    cs.addText("36-month MRR forecast", { x: 0.7, y: 0.75, w: 12, h: 0.6, fontSize: 26, bold: true, color: INK, fontFace: "Calibri" });
+    cs.addImage({ data: charts.forecastImg, x: 0.7, y: 1.5, w: 12, h: 5.6, sizing: { type: "contain", w: 12, h: 5.6 } });
+  }
+
   sectionSlide("Step 3", "Fundraising", [
     { label: "Raise", value: fmtM(a.fundraise.raise) },
     { label: "Pre-money", value: fmtM(preMoney) },
@@ -155,6 +169,15 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy) {
     { label: "Raise size", value: fmtM(a.cashflow.fundraiseAmount) },
     { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise}` },
   ], `Healthy burn multiple is < 2×. Above signals inefficient growth.`);
+
+  if (charts?.cashflowImg) {
+    const cs = pres.addSlide();
+    cs.background = { color: "FFFFFF" };
+    cs.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
+    cs.addText("CASHFLOW · CHART", { x: 0.7, y: 0.4, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
+    cs.addText("Cash balance over 36 months", { x: 0.7, y: 0.75, w: 12, h: 0.6, fontSize: 26, bold: true, color: INK, fontFace: "Calibri" });
+    cs.addImage({ data: charts.cashflowImg, x: 0.7, y: 1.5, w: 12, h: 5.6, sizing: { type: "contain", w: 12, h: 5.6 } });
+  }
 
   // Summary
   const sum = pres.addSlide();
