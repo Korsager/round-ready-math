@@ -1,17 +1,18 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState } from "react";
 import {
   Rocket, TrendingUp, DollarSign, PieChart,
-  BarChart3, Target, RotateCcw, ChevronDown, ChevronUp
+  BarChart3, Target, ChevronDown, ChevronUp
 } from "lucide-react";
 import {
   PieChart as RPieChart, Pie, Cell, ResponsiveContainer,
   Tooltip as ReTooltip
 } from "recharts";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import rocketImg from "@/assets/rocket-launch.png";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import NavBar from "@/components/NavBar";
+import AssumptionsBanner from "@/components/AssumptionsBanner";
+import { useAssumptions } from "@/lib/assumptions";
 
 /* ── Calc Engine ── */
 interface Inputs {
@@ -21,7 +22,6 @@ interface Inputs {
   yearsToExit: number;
   targetMoic: number;
 }
-const DEFAULTS: Inputs = { raise: 2_000_000, dilutionPct: 20, targetIrr: 30, yearsToExit: 5, targetMoic: 4 };
 
 function compute(i: Inputs) {
   const ownership = i.dilutionPct / 100;
@@ -39,70 +39,12 @@ function compute(i: Inputs) {
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-function parseShorthand(raw: string): number | null {
-  const s = raw.trim().replace(/[$,]/g, "").replace(/%$/, "").replace(/×$/, "").replace(/yr$/i, "");
-  if (!s) return null;
-  const match = s.match(/^(\d+\.?\d*)\s*([mkb]?)$/i);
-  if (!match) return null;
-  let num = parseFloat(match[1]);
-  const unit = match[2].toLowerCase();
-  if (unit === "k") num *= 1_000;
-  else if (unit === "m") num *= 1_000_000;
-  else if (unit === "b") num *= 1_000_000_000;
-  return isNaN(num) ? null : num;
-}
-
-const ManualInput = ({
-  label, value, onChange, format, suffix, tooltip
-}: {
-  label: string; value: number; onChange: (v: number) => void;
-  format: (v: number) => string; suffix?: string; tooltip: string;
-}) => {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const startEdit = () => {
-    setDraft(format(value).replace(/[$,]/g, ""));
-    setEditing(true);
-    setTimeout(() => inputRef.current?.select(), 0);
-  };
-
-  const commit = () => {
-    const parsed = parseShorthand(draft);
-    if (parsed !== null && parsed > 0) onChange(parsed);
-    setEditing(false);
-  };
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-          <span className="text-xs font-medium text-muted-foreground">{label}</span>
-          {editing ? (
-            <input
-              ref={inputRef}
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-              className="w-24 text-right text-sm font-bold text-foreground bg-secondary rounded-md px-2 py-1 outline-none ring-1 ring-primary/30 tabular-nums"
-            />
-          ) : (
-            <button
-              onClick={startEdit}
-              className="text-sm font-bold text-foreground tabular-nums hover:text-primary hover:bg-secondary px-2 py-1 rounded-md transition-colors"
-            >
-              {format(value)}
-            </button>
-          )}
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-[200px] text-xs">{tooltip}</TooltipContent>
-    </Tooltip>
-  );
-};
+const ReadOnlyRow = ({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) => (
+  <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0" title={tooltip}>
+    <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <span className="text-sm font-bold text-foreground tabular-nums">{value}</span>
+  </div>
+);
 
 const MetricCard = ({
   label, value, sub, icon: Icon, color, explainer
@@ -131,10 +73,9 @@ const GLOSSARY = [
 ];
 
 const Index = () => {
-  const [inputs, setInputs] = useState<Inputs>(DEFAULTS);
+  const { assumptions } = useAssumptions();
+  const inputs: Inputs = assumptions.fundraise;
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const update = useCallback((k: keyof Inputs, v: number) => setInputs(p => ({ ...p, [k]: v })), []);
-  const reset = useCallback(() => setInputs(DEFAULTS), []);
   const r = compute(inputs);
 
   const ownershipData = [
@@ -156,34 +97,34 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Greeting */}
-        <div className="mb-8 flex items-start justify-between gap-4 animate-fade-up">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
-              <Rocket className="text-primary" size={26} />
-              Fundraise Math Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-1">Adjust your round → see valuation, dilution, IRR & required exit instantly</p>
-          </div>
-          <button onClick={reset} className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-md hover:bg-secondary border border-border">
-            <RotateCcw size={14} /> Reset
-          </button>
+        <div className="mb-6 animate-fade-up">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
+            <Rocket className="text-primary" size={26} />
+            Fundraise Math Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">Adjust your round → see valuation, dilution, IRR & required exit instantly</p>
         </div>
+
+        <AssumptionsBanner>
+          Raising {fmtM(inputs.raise)} at {inputs.dilutionPct}% dilution · {inputs.targetIrr}% target IRR over {inputs.yearsToExit}yr
+        </AssumptionsBanner>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-card rounded-2xl border border-border p-5 shadow-md animate-fade-up" style={{ animationDelay: "0.1s" }}>
               <h3 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
-                <BarChart3 size={16} className="text-primary" /> Adjust Your Round
+                <BarChart3 size={16} className="text-primary" /> Your Round
               </h3>
-              <p className="text-[11px] text-muted-foreground mb-4">Click any value to edit. Try shorthand like "2M" or "500K".</p>
+              <p className="text-[11px] text-muted-foreground mb-4">Edit any of these on the Assumptions page.</p>
               <div className="space-y-0">
-                <ManualInput label="Raise Amount" value={inputs.raise} onChange={(v) => update("raise", v)} format={fmtM} tooltip="How much capital you're raising." />
-                <ManualInput label="Pre-Money Valuation" value={r.preMoney} onChange={(v) => { if (v > 0 && inputs.raise > 0) update("dilutionPct", +((inputs.raise / (v + inputs.raise)) * 100).toFixed(2)); }} format={fmtM} tooltip="Editing this recalculates dilution." />
-                <ManualInput label="Dilution %" value={inputs.dilutionPct} onChange={(v) => update("dilutionPct", v)} format={(v) => `${v}%`} suffix="%" tooltip="Ownership % you give to investors." />
-                <ManualInput label="Target IRR" value={inputs.targetIrr} onChange={(v) => update("targetIrr", v)} format={(v) => `${v}%`} suffix="%" tooltip="Annual return rate investors expect." />
-                <ManualInput label="Years to Exit" value={inputs.yearsToExit} onChange={(v) => update("yearsToExit", Math.round(v))} format={(v) => `${v}yr`} suffix="yr" tooltip="Years until exit/liquidity." />
-                <ManualInput label="Your MOIC" value={inputs.targetMoic} onChange={(v) => update("targetMoic", v)} format={(v) => `${v}×`} suffix="×" tooltip="Multiple on Invested Capital." />
+                <ReadOnlyRow label="Raise Amount" value={fmtM(inputs.raise)} tooltip="How much capital you're raising." />
+                <ReadOnlyRow label="Pre-Money Valuation" value={fmtM(r.preMoney)} tooltip="Implied from raise & dilution." />
+                <ReadOnlyRow label="Post-Money Valuation" value={fmtM(r.postMoney)} tooltip="Pre-money + raise." />
+                <ReadOnlyRow label="Dilution %" value={`${inputs.dilutionPct}%`} tooltip="Ownership % to investors." />
+                <ReadOnlyRow label="Target IRR" value={`${inputs.targetIrr}%`} tooltip="Annual return rate investors expect." />
+                <ReadOnlyRow label="Years to Exit" value={`${inputs.yearsToExit}yr`} tooltip="Years until exit/liquidity." />
+                <ReadOnlyRow label="Your MOIC" value={`${inputs.targetMoic}×`} tooltip="Multiple on Invested Capital." />
               </div>
             </div>
 

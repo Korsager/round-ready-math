@@ -1,21 +1,18 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import NavBar from "@/components/NavBar";
-import ControlPanel from "@/components/forecast/ControlPanel";
+import AssumptionsBanner from "@/components/AssumptionsBanner";
 import StatCards from "@/components/forecast/StatCards";
 import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
 import WaterfallChart from "@/components/forecast/WaterfallChart";
 import ExportButtons from "@/components/forecast/ExportButtons";
 import type { ForecastInputs } from "@/lib/forecast";
-import { runScenario, buildWaterfall } from "@/lib/forecast";
+import { runScenario, buildWaterfall, deriveAnnualNRR } from "@/lib/forecast";
 import { useAssumptions } from "@/lib/assumptions";
-import { toast } from "sonner";
 
 export default function Forecast() {
   const { assumptions, setForecast } = useAssumptions();
   const inputs = assumptions.forecast;
-  const setInputs = setForecast as (v: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => void;
-  const [stressing, setStressing] = useState(false);
 
   const { bull, base, bear, waterfall } = useMemo(() => {
     const b = runScenario(inputs, "base");
@@ -31,26 +28,8 @@ export default function Forecast() {
   const matrixRef = useRef<HTMLDivElement>(null);
   const waterfallRef = useRef<HTMLDivElement>(null);
 
-  const onStressTest = () => {
-    if (stressing) return;
-    setStressing(true);
-    const original = inputs;
-    setInputs({
-      ...original,
-      monthlyGrossChurnRate: original.monthlyGrossChurnRate * 1.8,
-      monthlyDowngradeRate: original.monthlyDowngradeRate * 1.6,
-      monthlyExpansionRate: original.monthlyExpansionRate * 0.5,
-      monthlyGrowthRate: original.monthlyGrowthRate * 0.5,
-    });
-    toast("Stress testing…", { description: "Churn ↑, expansion ↓, growth -50% for 3s" });
-    setTimeout(() => {
-      setInputs(original);
-      setStressing(false);
-    }, 3000);
-  };
-
   const onCellClick = (nrr: number, growth: number) => {
-    setInputs((p) => {
+    setForecast((p: ForecastInputs) => {
       const baseNet = -p.monthlyGrossChurnRate - p.monthlyDowngradeRate + p.monthlyExpansionRate;
       const targetMonthlyFactor = Math.pow(nrr / 100, 1 / 12);
       const targetNet = (targetMonthlyFactor - 1) * 100;
@@ -65,6 +44,8 @@ export default function Forecast() {
     });
   };
 
+  const nrr = deriveAnnualNRR(inputs);
+
   return (
     <div className="min-h-screen bg-white text-[#111827]" style={{ fontFamily: "Inter, ui-sans-serif, system-ui" }}>
       <NavBar />
@@ -75,9 +56,11 @@ export default function Forecast() {
         <p className="text-[11px] sm:text-[12px] text-[#9CA3AF] mt-1">An interactive tool based on the framework from The Founders Corner.</p>
       </header>
 
-      <ControlPanel inputs={inputs} onChange={setInputs} onStressTest={onStressTest} stressing={stressing} />
+      <AssumptionsBanner>
+        Growth {inputs.monthlyGrowthRate}%/mo · Gross churn {inputs.monthlyGrossChurnRate.toFixed(1)}% · NRR {nrr.toFixed(0)}%
+      </AssumptionsBanner>
 
-      <main className="max-w-[1100px] mx-auto px-4 py-8">
+      <main className="max-w-[1100px] mx-auto px-4 py-4">
         <StatCards startingMRR={inputs.startingMRR} bull={bull} base={base} bear={bear} />
         <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={inputs.startingMRR} />
         <MatrixChart ref={matrixRef} inputs={inputs} onCellClick={onCellClick} />
