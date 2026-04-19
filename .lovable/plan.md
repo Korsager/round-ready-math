@@ -1,73 +1,67 @@
 
-## Plan: Add an Assumptions page
+## Plan: Convert the toolkit into a guided course flow
 
-A new `/assumptions` page that surfaces every assumption used across Fundraise Math, Forecast, and Cashflow in one read-only-ish overview, grouped by category, with click-to-edit values and a single "Reset all" action.
+Transform the app from a free-navigation dashboard into a linear, step-by-step course. Users start by choosing to upload an existing plan or start fresh, then walk through Pricing → Revenue Forecast → Fundraising → Cashflow, and finish at an export step (JSON, PDF, PPTX).
 
-### Problem
-Assumptions are currently scattered across 3 pages. Founders can't see the full picture of what they're modeling in one place, and there's no shared source of truth — each page holds its own state.
+### 1. New onboarding step (`src/pages/Start.tsx`)
+- Two big choice cards:
+  - **Upload existing plan** — file input accepting `.json`, parsed and validated against `Assumptions` shape, then merged into the store via `useAssumptions`.
+  - **Start from scratch** — loads `DEFAULT_ASSUMPTIONS`.
+- On either choice → navigate to `/course/pricing`.
+- Invalid JSON shows inline error.
 
-### Approach
+### 2. Course shell (`src/components/course/CourseLayout.tsx`)
+Wraps each step with:
+- Top progress bar (5 steps: Pricing, Revenue, Fundraising, Cashflow, Export) with current step highlighted and completed steps checkmarked.
+- Step title + short "what you'll do here" intro paragraph.
+- Sticky footer with **Back** and **Next** buttons (Next disabled only on the very last "finish" action).
+- Replaces the freeform `NavBar` on course routes (NavBar still exists for `/assumptions` and legacy access via a small "Exit course" link).
 
-**1. Shared assumptions store (`src/lib/assumptions.ts` — new)**
-- Define `Assumptions` type combining: fundraise inputs, forecast inputs (`ForecastInputs`), and cashflow inputs (`CashflowInputs` minus the revenue overlap).
-- Persist to `localStorage` under `founders-toolkit-assumptions-v1`.
-- Export `useAssumptions()` hook (lightweight — `useState` + `useEffect` sync, no context needed for v1).
-- Export `DEFAULT_ASSUMPTIONS` reusing existing defaults from `presets.ts` and cashflow defaults.
+### 3. Step pages (reuse existing logic, restructured)
+- **`/course/pricing`** — embeds existing `PricingPlaybook` content + the pricing assumption inputs (currently on Assumptions page) inline. Inputs write to the shared store.
+- **`/course/revenue`** — embeds the Forecast page outputs + the revenue/forecast inputs inline.
+- **`/course/fundraising`** — embeds the Fundraise (Index) dashboard + fundraise inputs inline.
+- **`/course/cashflow`** — embeds the Cashflow page + cashflow-specific inputs inline.
 
-**2. New page (`src/pages/Assumptions.tsx`)**
-Layout (mobile-first, same NavBar, max-width 1100px):
+Each step shows: intro → inputs (editable inline, same `AssumptionRow` component) → live output/visualization → Back/Next.
 
-```text
-[NavBar]
-─────────────────────────────────
-Assumptions
-Every number powering your model, in one place.
-[Reset all] [Copy as JSON]
-─────────────────────────────────
-[Preset dropdown — applies to revenue block]
-─────────────────────────────────
-Section: Fundraise
-  Raise amount        $2,000,000     [edit]
-  Pre-money           $8,000,000     [edit]
-  Dilution            20%            (derived)
-  Target IRR          25%            [edit]
-  ...
-─────────────────────────────────
-Section: Revenue (36-mo forecast)
-  Starting MRR        $10,000        [edit]
-  Monthly bookings    $2,000         [edit]
-  Growth rate         6%             [edit]
-  Gross churn         1.5%           [edit]
-  Downgrades          0.4%           [edit]
-  Expansion           1.9%           [edit]
-  Hiring ramp         75 days        [edit]
-  Derived NRR         100%           (computed chip)
-─────────────────────────────────
-Section: Cashflow
-  Starting cash       $1,500,000     [edit]
-  Months to raise     6              [edit]
-  Starting OpEx       $180,000       [edit]
-  OpEx growth         4%/mo          [edit]
-  Gross margin        75%            [edit]
-─────────────────────────────────
-```
+### 4. Export step (`/course/export`)
+Three download buttons:
+- **Download JSON** — serializes current `Assumptions` (already implemented as "Copy JSON" on Assumptions page; just swap to file download).
+- **Download PDF report** — multi-page PDF covering all 4 sections with key numbers, charts (rendered to images via `html-to-image`, already in deps), and verdicts. Generated client-side with `jspdf` (needs add).
+- **Download Presentation (PPTX)** — investor-style deck with cover, one slide per section (Pricing, Revenue, Fundraising, Cashflow), and a summary slide. Generated client-side with `pptxgenjs` (needs add).
 
-Each row: label, current value (click-to-edit inline input matching the existing pattern from `mem://ui/input-behavior` — accepts shorthands like `2M`, `5x`, `20%`), small description on hover.
+Also shows a "Save & exit to dashboard" link that drops the user on the existing free-navigation Assumptions page.
 
-**3. Wire existing pages to read from the store (light touch)**
-- `Forecast.tsx` and `Cashflow.tsx` initialize their state from `useAssumptions()` instead of hard-coded defaults.
-- When the user moves a slider on Forecast/Cashflow, it writes back to the store.
-- Reset button on Assumptions page restores defaults everywhere.
-- (Fundraise/Index page sync is out of scope for v1 — it has its own complex state; we'll mirror just the values it already uses.)
+### 5. Routing changes (`src/App.tsx`)
+- `/` → redirect to `/start` (new entry point).
+- New routes: `/start`, `/course/pricing`, `/course/revenue`, `/course/fundraising`, `/course/cashflow`, `/course/export`.
+- Keep existing routes (`/assumptions`, `/forecast`, `/cashflow`, `/pricing-playbook`, and old fundraise dashboard at `/dashboard`) for power users who exit the course.
 
-**4. Nav (`src/components/NavBar.tsx`)**
-Add "Assumptions" link between "Fundraise" and "Forecast".
+### 6. State & persistence
+- Continue using `useAssumptions` (localStorage). Already handles cross-step persistence — no changes needed.
+- Add a small `courseProgress` field to track furthest step reached (so Next buttons unlock properly on revisit).
 
 ### Files
-**New:** `src/lib/assumptions.ts`, `src/pages/Assumptions.tsx`, `src/components/assumptions/AssumptionRow.tsx` (reusable click-to-edit row)
-**Edited:** `src/App.tsx` (route), `src/components/NavBar.tsx` (link), `src/pages/Forecast.tsx` + `src/pages/Cashflow.tsx` (read/write store)
+
+**New:**
+- `src/pages/Start.tsx`
+- `src/pages/course/Pricing.tsx`, `Revenue.tsx`, `Fundraising.tsx`, `Cashflow.tsx`, `Export.tsx`
+- `src/components/course/CourseLayout.tsx`
+- `src/components/course/StepProgress.tsx`
+- `src/components/course/UploadJson.tsx`
+- `src/lib/exportPdf.ts` (jsPDF report builder)
+- `src/lib/exportPptx.ts` (pptxgenjs deck builder)
+
+**Edited:**
+- `src/App.tsx` — new routes + `/` redirect
+- `src/lib/assumptions.ts` — add `courseProgress` field
+- `src/components/NavBar.tsx` — add "Exit course" link variant
+
+**Dependencies to add:** `jspdf`, `pptxgenjs`
 
 ### Out of scope
-- No backend persistence (localStorage only)
-- No multi-scenario saving (already covered by existing scenario management on Index)
-- No deep sync with Index page state (v1 mirrors values, doesn't drive them)
+- No backend storage of plans (JSON upload/download only).
+- No multi-user accounts.
+- No editing of generated PDF/PPTX after download.
+- Pricing inputs schema: assumes existing pricing fields on `PricingPlaybook` are already captured somewhere editable; if not, we'll add a minimal `PricingAssumptions` block to the store as part of the Pricing step.
