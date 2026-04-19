@@ -1,51 +1,43 @@
 
-## Plan: Simplify Fundraise Math page & remove duplicate header
+## Plan: Add explicit churn, downgrade, and expansion inputs to the forecast
 
-### Issues to fix
-1. **Duplicate header bars**: `Index.tsx` has both `<NavBar />` (top nav with links) AND a sticky sub-header showing "Fundraise Math" + tagline + Reset button. The user wants only the NavBar.
-2. **Information is dense**: Numbers like "Required MOIC", "Required Exit", "IRR", "Investor Own." appear without plain-language meaning. The "At a Glance" panel duplicates info already shown in big cards. The IRR Verdict and Quick Tip partially overlap.
+Currently the waterfall splits a single NRR-derived churn figure into hardcoded buckets (70% gross churn, 30% downgrades) and computes expansion as a residual. The user wants these as real, controllable inputs.
 
-### Changes to `src/pages/Index.tsx`
+### Changes
 
-**1. Remove the duplicate sub-header**
-- Delete the entire `<header className="sticky top-14 ...">` block.
-- Move the **Reset button** into the greeting row (top-right next to the H1).
-- Keep `<NavBar />` as the only top bar.
+**1. `src/lib/forecast.ts` — extend the math engine**
+- Add 3 new fields to `ForecastInputs`:
+  - `monthlyGrossChurnRate` (% of MRR lost to cancellations, e.g. 1.5)
+  - `monthlyDowngradeRate` (% of MRR lost to plan downgrades, e.g. 0.5)
+  - `monthlyExpansionRate` (% of MRR gained from upgrades/seat expansion, e.g. 1.5)
+- Replace the NRR-derived `monthlyNrrFactor` in `simulate()` with explicit per-month components:
+  - `grossChurnLoss = prev * grossChurnRate`
+  - `downgradeLoss = prev * downgradeRate`
+  - `expansionGain = prev * expansionRate`
+  - `retainedMRR = prev - grossChurnLoss - downgradeLoss + expansionGain`
+- Extend `MonthlyData` with `downgradeLoss` and split `churnLoss` into `grossChurnLoss`.
+- Keep `annualNRR` as a **derived display value** (computed from the 3 rates) instead of an input — shown read-only so users still see the familiar metric.
+- Rewrite `buildWaterfall()` to sum the real monthly values (no more 70/30 hardcode, no residual expansion).
+- Update scenario adjustments: bull/bear modify the 3 new rates instead of `nrrAdd`.
 
-**2. Add plain-language explanations to each metric**
-Every key number gets a short one-line "what this means" caption directly under it (12px muted text), so users don't have to hover for the tooltip:
-- **Post-Money card**: add "What your company is worth right after the round closes."
-- **Required MOIC**: "How many times investors must multiply their money."
-- **Required Exit**: "The sale/IPO price needed to deliver the target return."
-- **Your IRR**: "The yearly return rate your MOIC produces."
-- **Investor Ownership**: "The slice of the company investors will hold."
+**2. `src/lib/presets.ts`**
+- Add the 3 new rate fields to every preset and `DEFAULT_INPUTS` with sensible per-segment defaults (e.g. B2B SaaS: 1.0 / 0.3 / 1.5).
 
-**3. Simplify the right column**
-- **Remove "At a Glance"** panel entirely — it duplicates the big cards on the left/center.
-- Keep **IRR Verdict** but rename to **"Is this a good deal?"** with a clearer ✅/⚠️/🔴 status line and a one-sentence plain-English explanation.
-- Keep the **Quick Tip** but rewrite it as a "Plain English Summary" paragraph that ties everything together: *"You're raising X for Y% of your company. To make investors happy, you need to sell for Z in N years."*
+**3. `src/components/forecast/ControlPanel.tsx`**
+- Remove the `annualNRR` slider.
+- Add 3 new sliders: Gross churn rate (0–10%, step 0.1), Downgrade rate (0–5%, step 0.1), Expansion rate (0–10%, step 0.1).
+- Show derived annual NRR as a small read-only chip above the sliders so users keep the mental model.
+- Layout: switch grid to `md:grid-cols-4` × 2 rows (7 sliders total) to stay readable.
 
-**4. Add a small "Glossary" callout** (collapsible, optional) at the bottom of the right column defining the 4 jargon terms once: Pre-Money, Post-Money, MOIC, IRR, Dilution. Each in one line.
+**4. `src/components/forecast/MatrixChart.tsx`**
+- Matrix currently varies NRR vs growth. Keep the same axes by mapping the NRR row value back into the 3 component rates proportionally (preserve current gross/downgrade/expansion ratios, scale to hit target NRR). This keeps the chart meaningful without adding a 3rd dimension.
 
-**5. Heatmap**: Add a one-line intro above it: *"Each cell shows the IRR if you exit at that MOIC after that many years. Green = beats your target, red = falls short."*
+**5. `src/components/forecast/WaterfallChart.tsx`**
+- No structural change — it already renders the 6 bars. It will now reflect real input-driven values instead of the 70/30 split.
 
-### Files affected
-- `src/pages/Index.tsx` (only file edited)
+**6. `src/pages/Forecast.tsx`**
+- No changes needed beyond passing the new inputs through (already generic).
 
 ### Out of scope
-- No changes to math, NavBar, HeatmapGrid, or Forecast page.
-- No new dependencies.
-
-### Visual layout after changes
-```text
-[NavBar — only top bar]
-─────────────────────────────────
-Fundraise Math Dashboard 🚀         [Reset]
-Adjust your round → see results instantly
-─────────────────────────────────
-[Inputs]   [Post-Money + pie]      [Is this a good deal?]
-[Rocket]   [4 metric cards w/        [Plain-English summary]
-            captions under each]     [Glossary (collapsible)]
-─────────────────────────────────
-[Heatmap with intro line]
-```
+- No changes to scenario multiplier philosophy beyond rewiring (`nrrAdd` → `churnRateMult` etc.).
+- No new files. No backend.
