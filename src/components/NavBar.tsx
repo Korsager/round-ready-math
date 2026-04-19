@@ -16,6 +16,7 @@ export default function NavBar() {
         <div className="flex items-center gap-1">
           <NavLink to="/" end className={linkCls}>Fundraise math</NavLink>
           <NavLink to="/forecast" className={linkCls}>36-month forecast</NavLink>
+          <NavLink to="/cashflow" className={linkCls}>Cashflow & runway</NavLink>
           <NavLink to="/pricing-playbook" className={linkCls}>Pricing playbook</NavLink>
         </div>
       </div>
