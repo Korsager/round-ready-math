@@ -6,13 +6,15 @@ import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
 import WaterfallChart from "@/components/forecast/WaterfallChart";
 import ExportButtons from "@/components/forecast/ExportButtons";
-import { DEFAULT_INPUTS } from "@/lib/presets";
 import type { ForecastInputs } from "@/lib/forecast";
 import { runScenario, buildWaterfall } from "@/lib/forecast";
+import { useAssumptions } from "@/lib/assumptions";
 import { toast } from "sonner";
 
 export default function Forecast() {
-  const [inputs, setInputs] = useState<ForecastInputs>(DEFAULT_INPUTS);
+  const { assumptions, setForecast } = useAssumptions();
+  const inputs = assumptions.forecast;
+  const setInputs = setForecast as (v: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => void;
   const [stressing, setStressing] = useState(false);
 
   const { bull, base, bear, waterfall } = useMemo(() => {

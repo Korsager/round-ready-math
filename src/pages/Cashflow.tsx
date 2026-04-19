@@ -6,13 +6,20 @@ import RunwayCards from "@/components/cashflow/RunwayCards";
 import CashflowTable from "@/components/cashflow/CashflowTable";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { simulateCashflow, DEFAULT_CASHFLOW, type CashflowInputs } from "@/lib/cashflow";
-import { DEFAULT_INPUTS } from "@/lib/presets";
+import { simulateCashflow, type CashflowInputs } from "@/lib/cashflow";
+import { useAssumptions } from "@/lib/assumptions";
 import { toPng } from "html-to-image";
 import { fmtDollars } from "@/lib/format";
 
 export default function Cashflow() {
-  const [inputs, setInputs] = useState<CashflowInputs>({ ...DEFAULT_CASHFLOW, forecast: DEFAULT_INPUTS });
+  const { assumptions, setCashflow, setForecast } = useAssumptions();
+  const inputs: CashflowInputs = { ...assumptions.cashflow, forecast: assumptions.forecast };
+  const setInputs = (next: CashflowInputs | ((p: CashflowInputs) => CashflowInputs)) => {
+    const resolved = typeof next === "function" ? (next as (p: CashflowInputs) => CashflowInputs)(inputs) : next;
+    const { forecast, ...cash } = resolved;
+    setCashflow(cash);
+    setForecast(forecast);
+  };
   const result = useMemo(() => simulateCashflow(inputs, 36), [inputs]);
   const exportRef = useRef<HTMLDivElement>(null);
 
