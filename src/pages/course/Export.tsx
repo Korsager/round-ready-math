@@ -61,14 +61,14 @@ export default function CourseExport() {
 
       <div className="mt-8 bg-white rounded-xl border border-[#E5E7EB] p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-[14px] font-semibold text-[#111827]">Want to keep tweaking?</h3>
-          <p className="text-[12px] text-muted-foreground mt-0.5">Drop into the free-navigation dashboard to compare scenarios.</p>
+          <h3 className="text-[14px] font-semibold text-[#111827]">Start a new plan</h3>
+          <p className="text-[12px] text-muted-foreground mt-0.5">Go back to the beginning to upload a different plan or start fresh.</p>
         </div>
-        <Link to="/assumptions">
+        <a href="/start">
           <Button variant="outline" size="sm" className="h-9">
-            Open dashboard <ExternalLink size={13} className="ml-1.5" />
+            <RotateCcw size={13} className="mr-1.5" /> New plan
           </Button>
-        </Link>
+        </a>
       </div>
     </CourseLayout>
   );
