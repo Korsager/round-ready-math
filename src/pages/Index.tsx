@@ -10,6 +10,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import rocketImg from "@/assets/rocket-launch.png";
 import HeatmapGrid from "@/components/HeatmapGrid";
+import NavBar from "@/components/NavBar";
 
 /* ── Calc Engine (inline) ── */
 interface Inputs {
@@ -151,8 +152,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <NavBar />
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
+      <header className="sticky top-14 z-40 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Rocket className="text-primary" size={22} />
