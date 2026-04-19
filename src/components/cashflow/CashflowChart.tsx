@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { ComposedChart, Area, Bar, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import type { CashflowResult } from "@/lib/cashflow";
 import { fmt } from "@/lib/format";
@@ -7,7 +8,7 @@ interface Props {
   monthsUntilRaise: number;
 }
 
-export default function CashflowChart({ result, monthsUntilRaise }: Props) {
+const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRaise }, ref) => {
   const data = result.months.map((m) => ({
     month: m.month,
     cash: Math.round(m.cashBalance),
