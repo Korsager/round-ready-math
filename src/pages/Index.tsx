@@ -22,7 +22,6 @@ interface Inputs {
   yearsToExit: number;
   targetMoic: number;
 }
-const DEFAULTS: Inputs = { raise: 2_000_000, dilutionPct: 20, targetIrr: 30, yearsToExit: 5, targetMoic: 4 };
 
 function compute(i: Inputs) {
   const ownership = i.dilutionPct / 100;
@@ -40,70 +39,12 @@ function compute(i: Inputs) {
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-function parseShorthand(raw: string): number | null {
-  const s = raw.trim().replace(/[$,]/g, "").replace(/%$/, "").replace(/×$/, "").replace(/yr$/i, "");
-  if (!s) return null;
-  const match = s.match(/^(\d+\.?\d*)\s*([mkb]?)$/i);
-  if (!match) return null;
-  let num = parseFloat(match[1]);
-  const unit = match[2].toLowerCase();
-  if (unit === "k") num *= 1_000;
-  else if (unit === "m") num *= 1_000_000;
-  else if (unit === "b") num *= 1_000_000_000;
-  return isNaN(num) ? null : num;
-}
-
-const ManualInput = ({
-  label, value, onChange, format, suffix, tooltip
-}: {
-  label: string; value: number; onChange: (v: number) => void;
-  format: (v: number) => string; suffix?: string; tooltip: string;
-}) => {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const startEdit = () => {
-    setDraft(format(value).replace(/[$,]/g, ""));
-    setEditing(true);
-    setTimeout(() => inputRef.current?.select(), 0);
-  };
-
-  const commit = () => {
-    const parsed = parseShorthand(draft);
-    if (parsed !== null && parsed > 0) onChange(parsed);
-    setEditing(false);
-  };
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-          <span className="text-xs font-medium text-muted-foreground">{label}</span>
-          {editing ? (
-            <input
-              ref={inputRef}
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-              className="w-24 text-right text-sm font-bold text-foreground bg-secondary rounded-md px-2 py-1 outline-none ring-1 ring-primary/30 tabular-nums"
-            />
-          ) : (
-            <button
-              onClick={startEdit}
-              className="text-sm font-bold text-foreground tabular-nums hover:text-primary hover:bg-secondary px-2 py-1 rounded-md transition-colors"
-            >
-              {format(value)}
-            </button>
-          )}
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-[200px] text-xs">{tooltip}</TooltipContent>
-    </Tooltip>
-  );
-};
+const ReadOnlyRow = ({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) => (
+  <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0" title={tooltip}>
+    <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <span className="text-sm font-bold text-foreground tabular-nums">{value}</span>
+  </div>
+);
 
 const MetricCard = ({
   label, value, sub, icon: Icon, color, explainer
@@ -132,10 +73,9 @@ const GLOSSARY = [
 ];
 
 const Index = () => {
-  const [inputs, setInputs] = useState<Inputs>(DEFAULTS);
+  const { assumptions } = useAssumptions();
+  const inputs: Inputs = assumptions.fundraise;
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const update = useCallback((k: keyof Inputs, v: number) => setInputs(p => ({ ...p, [k]: v })), []);
-  const reset = useCallback(() => setInputs(DEFAULTS), []);
   const r = compute(inputs);
 
   const ownershipData = [
