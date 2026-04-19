@@ -1,17 +1,18 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState } from "react";
 import {
   Rocket, TrendingUp, DollarSign, PieChart,
-  BarChart3, Target, RotateCcw, ChevronDown, ChevronUp
+  BarChart3, Target, ChevronDown, ChevronUp
 } from "lucide-react";
 import {
   PieChart as RPieChart, Pie, Cell, ResponsiveContainer,
   Tooltip as ReTooltip
 } from "recharts";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import rocketImg from "@/assets/rocket-launch.png";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import NavBar from "@/components/NavBar";
+import AssumptionsBanner from "@/components/AssumptionsBanner";
+import { useAssumptions } from "@/lib/assumptions";
 
 /* ── Calc Engine ── */
 interface Inputs {
