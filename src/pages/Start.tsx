@@ -26,10 +26,6 @@ export default function Start() {
         </div>
 
         <UploadJson />
-
-        <p className="text-center text-[12px] text-muted-foreground mt-8">
-          Already exploring? <a href="/assumptions" className="underline hover:text-foreground">Skip to the dashboard</a>.
-        </p>
       </main>
     </div>
   );
