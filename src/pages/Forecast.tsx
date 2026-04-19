@@ -35,10 +35,12 @@ export default function Forecast() {
     const original = inputs;
     setInputs({
       ...original,
-      annualNRR: Math.max(50, original.annualNRR - 20),
+      monthlyGrossChurnRate: original.monthlyGrossChurnRate * 1.8,
+      monthlyDowngradeRate: original.monthlyDowngradeRate * 1.6,
+      monthlyExpansionRate: original.monthlyExpansionRate * 0.5,
       monthlyGrowthRate: original.monthlyGrowthRate * 0.5,
     });
-    toast("Stress testing…", { description: "NRR -20pp, growth -50% for 3s" });
+    toast("Stress testing…", { description: "Churn ↑, expansion ↓, growth -50% for 3s" });
     setTimeout(() => {
       setInputs(original);
       setStressing(false);
@@ -46,7 +48,19 @@ export default function Forecast() {
   };
 
   const onCellClick = (nrr: number, growth: number) => {
-    setInputs((p) => ({ ...p, annualNRR: nrr, monthlyGrowthRate: growth }));
+    setInputs((p) => {
+      const baseNet = -p.monthlyGrossChurnRate - p.monthlyDowngradeRate + p.monthlyExpansionRate;
+      const targetMonthlyFactor = Math.pow(nrr / 100, 1 / 12);
+      const targetNet = (targetMonthlyFactor - 1) * 100;
+      const scale = baseNet === 0 ? 1 : targetNet / baseNet;
+      return {
+        ...p,
+        monthlyGrowthRate: growth,
+        monthlyGrossChurnRate: p.monthlyGrossChurnRate * scale,
+        monthlyDowngradeRate: p.monthlyDowngradeRate * scale,
+        monthlyExpansionRate: p.monthlyExpansionRate * scale,
+      };
+    });
   };
 
   return (
