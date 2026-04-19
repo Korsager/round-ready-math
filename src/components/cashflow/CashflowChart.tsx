@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { ComposedChart, Area, Bar, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import type { CashflowResult } from "@/lib/cashflow";
 import { fmt } from "@/lib/format";
@@ -7,7 +8,7 @@ interface Props {
   monthsUntilRaise: number;
 }
 
-export default function CashflowChart({ result, monthsUntilRaise }: Props) {
+const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRaise }, ref) => {
   const data = result.months.map((m) => ({
     month: m.month,
     cash: Math.round(m.cashBalance),
@@ -17,7 +18,7 @@ export default function CashflowChart({ result, monthsUntilRaise }: Props) {
   }));
 
   return (
-    <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+    <div ref={ref} className="bg-white rounded-xl border border-[#E5E7EB] p-5">
       <h3 className="text-[15px] font-semibold text-[#111827] mb-1">Cash balance over 36 months</h3>
       <p className="text-[12px] text-[#6B7280] mb-4">Blue area = cash on hand. Red bars = monthly burn. Green bars = monthly profit. Dashed line = raise closes.</p>
       <div style={{ width: "100%", height: 360 }}>
@@ -54,4 +55,7 @@ export default function CashflowChart({ result, monthsUntilRaise }: Props) {
       </div>
     </div>
   );
-}
+});
+
+CashflowChart.displayName = "CashflowChart";
+export default CashflowChart;
