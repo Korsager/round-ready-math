@@ -5,6 +5,7 @@ import CourseLayout from "@/components/course/CourseLayout";
 import { useAssumptions } from "@/lib/assumptions";
 import { exportPdf } from "@/lib/exportPdf";
 import { exportPptx } from "@/lib/exportPptx";
+import { loadPricingStrategy } from "@/lib/pricingStrategy";
 
 export default function CourseExport() {
   const { assumptions } = useAssumptions();
@@ -12,7 +13,8 @@ export default function CourseExport() {
   const mark = (k: string) => setDone((s) => new Set(s).add(k));
 
   const downloadJson = () => {
-    const blob = new Blob([JSON.stringify(assumptions, null, 2)], { type: "application/json" });
+    const payload = { ...assumptions, pricing: loadPricingStrategy() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -22,8 +24,8 @@ export default function CourseExport() {
     mark("json");
   };
 
-  const downloadPdf = () => { exportPdf(assumptions); mark("pdf"); };
-  const downloadPptx = () => { exportPptx(assumptions); mark("pptx"); };
+  const downloadPdf = () => { exportPdf(assumptions, loadPricingStrategy()); mark("pdf"); };
+  const downloadPptx = () => { exportPptx(assumptions, loadPricingStrategy()); mark("pptx"); };
 
   return (
     <CourseLayout

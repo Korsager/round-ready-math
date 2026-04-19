@@ -2,6 +2,7 @@ import pptxgen from "pptxgenjs";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
+import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -12,7 +13,8 @@ const ACCENT = "F96167";
 const INK = "111827";
 const MUTED = "6B7280";
 
-export function exportPptx(a: Assumptions) {
+export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy) {
+  const pricing = pricingArg ?? loadPricingStrategy();
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
 
@@ -36,19 +38,17 @@ export function exportPptx(a: Assumptions) {
   const sectionSlide = (kicker: string, title: string, stats: { label: string; value: string }[], note: string) => {
     const s = pres.addSlide();
     s.background = { color: "FFFFFF" };
-    // Side bar
     s.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
     s.addText(kicker.toUpperCase(), { x: 0.7, y: 0.5, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
     s.addText(title, { x: 0.7, y: 0.85, w: 12, h: 0.9, fontSize: 36, bold: true, color: INK, fontFace: "Calibri" });
 
-    // Stats grid
     const startY = 2.2;
     const cardW = 2.85, cardH = 1.6, gap = 0.2;
     stats.slice(0, 4).forEach((stat, i) => {
       const x = 0.7 + i * (cardW + gap);
       s.addShape(pres.ShapeType.roundRect, { x, y: startY, w: cardW, h: cardH, fill: { color: "F3F4F6" }, line: { color: "E5E7EB" }, rectRadius: 0.1 });
       s.addText(stat.label, { x: x + 0.2, y: startY + 0.15, w: cardW - 0.4, h: 0.3, fontSize: 11, color: MUTED });
-      s.addText(stat.value, { x: x + 0.2, y: startY + 0.5, w: cardW - 0.4, h: 0.9, fontSize: 26, bold: true, color: NAVY, fontFace: "Calibri" });
+      s.addText(stat.value, { x: x + 0.2, y: startY + 0.5, w: cardW - 0.4, h: 0.9, fontSize: 24, bold: true, color: NAVY, fontFace: "Calibri" });
     });
 
     if (stats.length > 4) {
@@ -57,19 +57,73 @@ export function exportPptx(a: Assumptions) {
         const y = startY + cardH + 0.25;
         s.addShape(pres.ShapeType.roundRect, { x, y, w: cardW, h: cardH, fill: { color: "F3F4F6" }, line: { color: "E5E7EB" }, rectRadius: 0.1 });
         s.addText(stat.label, { x: x + 0.2, y: y + 0.15, w: cardW - 0.4, h: 0.3, fontSize: 11, color: MUTED });
-        s.addText(stat.value, { x: x + 0.2, y: y + 0.5, w: cardW - 0.4, h: 0.9, fontSize: 26, bold: true, color: NAVY, fontFace: "Calibri" });
+        s.addText(stat.value, { x: x + 0.2, y: y + 0.5, w: cardW - 0.4, h: 0.9, fontSize: 24, bold: true, color: NAVY, fontFace: "Calibri" });
       });
     }
 
     s.addText(note, { x: 0.7, y: 6.3, w: 12, h: 0.8, fontSize: 14, italic: true, color: MUTED, fontFace: "Calibri" });
   };
 
-  sectionSlide("Step 1", "Pricing", [
-    { label: "Annual discount", value: "—" },
-    { label: "Tiers", value: "Starter · Pro · Enterprise" },
-    { label: "Strategy", value: "Anchor high" },
-    { label: "Reviewed", value: "Monthly" },
-  ], "Pricing strategy is captured in the Pricing step. The full playbook lives in your JSON export.");
+  // ---------- Pricing slides (driven by user data) ----------
+  const tierNames = pricing.tiers.map((t) => t.name || "—").join(" · ");
+  sectionSlide("Step 1", "Pricing strategy", [
+    { label: "Value metric", value: pricing.valueMetric.name?.trim() || "—" },
+    { label: "Pricing model", value: pricing.models.length ? pricing.models.join(", ") : "—" },
+    { label: "Tiers", value: tierNames },
+    { label: "Annual discount", value: pricing.annualDiscountPct?.trim() ? `${pricing.annualDiscountPct}%` : "—" },
+  ], pricing.valueMetric.rationale?.trim()
+    || pricing.context.businessModel?.trim()
+    || "Pricing strategy is captured in the Pricing step. Full details follow.");
+
+  // Tier detail slide
+  const tierSlide = pres.addSlide();
+  tierSlide.background = { color: "FFFFFF" };
+  tierSlide.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
+  tierSlide.addText("PRICING · TIERS", { x: 0.7, y: 0.5, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
+  tierSlide.addText("3 tiers", { x: 0.7, y: 0.85, w: 12, h: 0.9, fontSize: 36, bold: true, color: INK, fontFace: "Calibri" });
+  const tierW = 4.0, tierGap = 0.25, tierStartX = 0.7, tierStartY = 2.1, tierH = 5.0;
+  pricing.tiers.forEach((t, i) => {
+    const x = tierStartX + i * (tierW + tierGap);
+    tierSlide.addShape(pres.ShapeType.roundRect, { x, y: tierStartY, w: tierW, h: tierH, fill: { color: "F9FAFB" }, line: { color: "E5E7EB" }, rectRadius: 0.12 });
+    tierSlide.addText(t.name || `Tier ${i + 1}`, { x: x + 0.25, y: tierStartY + 0.2, w: tierW - 0.5, h: 0.5, fontSize: 20, bold: true, color: NAVY, fontFace: "Calibri" });
+    tierSlide.addText(t.job || "", { x: x + 0.25, y: tierStartY + 0.7, w: tierW - 0.5, h: 0.6, fontSize: 11, italic: true, color: MUTED });
+    tierSlide.addText(t.monthlyPrice ? `${t.monthlyPrice}/mo` : "—", { x: x + 0.25, y: tierStartY + 1.4, w: tierW - 0.5, h: 0.5, fontSize: 22, bold: true, color: INK, fontFace: "Calibri" });
+    if (t.annualPrice?.trim()) {
+      tierSlide.addText(`${t.annualPrice} annual`, { x: x + 0.25, y: tierStartY + 1.95, w: tierW - 0.5, h: 0.3, fontSize: 11, color: MUTED });
+    }
+    const features = (t.features || "").split("\n").map((f) => f.trim()).filter(Boolean);
+    if (features.length) {
+      tierSlide.addText(features.map((f) => ({ text: f, options: { bullet: { code: "2022" } } })), {
+        x: x + 0.25, y: tierStartY + 2.4, w: tierW - 0.5, h: tierH - 2.6, fontSize: 11, color: INK, fontFace: "Calibri", paraSpaceAfter: 4,
+      });
+    }
+  });
+
+  // Pricing notes slide (only if there's content)
+  const noteFields: { label: string; value: string }[] = [
+    { label: "Business model", value: pricing.context.businessModel },
+    { label: "Customer segments", value: pricing.context.segments },
+    { label: "Current pricing", value: pricing.context.currentPricing },
+    { label: "Anchoring notes", value: pricing.anchoringNotes },
+    { label: "Upgrade triggers", value: pricing.upgradeTriggers },
+    { label: "Model notes", value: pricing.modelNotes },
+  ].filter((n) => n.value?.trim());
+
+  if (noteFields.length) {
+    const ns = pres.addSlide();
+    ns.background = { color: "FFFFFF" };
+    ns.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
+    ns.addText("PRICING · NOTES", { x: 0.7, y: 0.5, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
+    ns.addText("Context & rationale", { x: 0.7, y: 0.85, w: 12, h: 0.9, fontSize: 32, bold: true, color: INK, fontFace: "Calibri" });
+    let y = 2.1;
+    const colW = 12;
+    noteFields.slice(0, 6).forEach((n) => {
+      ns.addText(n.label.toUpperCase(), { x: 0.7, y, w: colW, h: 0.3, fontSize: 10, bold: true, color: ACCENT, charSpacing: 3 });
+      y += 0.3;
+      ns.addText(n.value, { x: 0.7, y, w: colW, h: 0.7, fontSize: 13, color: INK, fontFace: "Calibri" });
+      y += 0.75;
+    });
+  }
 
   sectionSlide("Step 2", "Revenue forecast", [
     { label: "Starting MRR", value: fmtUsd(a.forecast.startingMRR) },
