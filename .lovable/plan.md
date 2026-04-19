@@ -1,43 +1,87 @@
 
-## Plan: Add explicit churn, downgrade, and expansion inputs to the forecast
+## Plan: Add a Cashflow & Runway page
 
-Currently the waterfall splits a single NRR-derived churn figure into hardcoded buckets (70% gross churn, 30% downgrades) and computes expansion as a residual. The user wants these as real, controllable inputs.
+A new `/cashflow` page that ties together the fundraise (Index) and revenue forecast (Forecast) inputs into a 36-month cash model showing exactly when the company runs out of money.
 
-### Changes
+### Inputs (one control panel)
 
-**1. `src/lib/forecast.ts` — extend the math engine**
-- Add 3 new fields to `ForecastInputs`:
-  - `monthlyGrossChurnRate` (% of MRR lost to cancellations, e.g. 1.5)
-  - `monthlyDowngradeRate` (% of MRR lost to plan downgrades, e.g. 0.5)
-  - `monthlyExpansionRate` (% of MRR gained from upgrades/seat expansion, e.g. 1.5)
-- Replace the NRR-derived `monthlyNrrFactor` in `simulate()` with explicit per-month components:
-  - `grossChurnLoss = prev * grossChurnRate`
-  - `downgradeLoss = prev * downgradeRate`
-  - `expansionGain = prev * expansionRate`
-  - `retainedMRR = prev - grossChurnLoss - downgradeLoss + expansionGain`
-- Extend `MonthlyData` with `downgradeLoss` and split `churnLoss` into `grossChurnLoss`.
-- Keep `annualNRR` as a **derived display value** (computed from the 3 rates) instead of an input — shown read-only so users still see the familiar metric.
-- Rewrite `buildWaterfall()` to sum the real monthly values (no more 70/30 hardcode, no residual expansion).
-- Update scenario adjustments: bull/bear modify the 3 new rates instead of `nrrAdd`.
+**Cash position**
+- Starting cash (default $1.5M)
+- Fundraise amount (pre-filled from Fundraise Math defaults: $2M)
+- Months until raise closes (0 = already in bank, default 6)
 
-**2. `src/lib/presets.ts`**
-- Add the 3 new rate fields to every preset and `DEFAULT_INPUTS` with sensible per-segment defaults (e.g. B2B SaaS: 1.0 / 0.3 / 1.5).
+**Revenue (reuses forecast engine)**
+- Starting MRR, monthly new bookings, growth rate, churn/downgrade/expansion rates, hiring ramp
+- Pulled from the same `ForecastInputs` defaults; user can pick a preset or tweak
 
-**3. `src/components/forecast/ControlPanel.tsx`**
-- Remove the `annualNRR` slider.
-- Add 3 new sliders: Gross churn rate (0–10%, step 0.1), Downgrade rate (0–5%, step 0.1), Expansion rate (0–10%, step 0.1).
-- Show derived annual NRR as a small read-only chip above the sliders so users keep the mental model.
-- Layout: switch grid to `md:grid-cols-4` × 2 rows (7 sliders total) to stay readable.
+**Costs**
+- Starting monthly burn / OpEx (default $180K)
+- Headcount cost growth %/month (default 4%)
+- Gross margin % (default 75%) — applied to revenue to get contribution
 
-**4. `src/components/forecast/MatrixChart.tsx`**
-- Matrix currently varies NRR vs growth. Keep the same axes by mapping the NRR row value back into the 3 component rates proportionally (preserve current gross/downgrade/expansion ratios, scale to hit target NRR). This keeps the chart meaningful without adding a 3rd dimension.
+### Math
 
-**5. `src/components/forecast/WaterfallChart.tsx`**
-- No structural change — it already renders the 6 bars. It will now reflect real input-driven values instead of the 70/30 split.
+For each month t = 0..36:
+- `revenue_t` = MRR from forecast simulation
+- `gross_profit_t` = revenue_t × gross margin
+- `opex_t` = startingBurn × (1 + opexGrowth)^t
+- `net_burn_t` = opex_t − gross_profit_t  (positive = burning, negative = profitable)
+- `cash_t` = cash_{t-1} − net_burn_t  (+ fundraise injected at month = monthsUntilRaise)
+- Runway = first month where cash_t ≤ 0 (or "36+ months" if never)
 
-**6. `src/pages/Forecast.tsx`**
-- No changes needed beyond passing the new inputs through (already generic).
+### Page layout
+
+```text
+[NavBar]
+─────────────────────────────────
+Cashflow & Runway
+Will you make it to the next round?
+─────────────────────────────────
+[Sticky control panel: 8 sliders + preset dropdown]
+─────────────────────────────────
+[3 big stat cards]
+  Runway (months) | Cash at month 36 | Default-alive month
+  color: green / amber / red based on runway vs 18mo target
+─────────────────────────────────
+[Verdict banner]
+  ✅ "You reach default-alive in month 22 — fundable"
+  ⚠️ "You run out in month 14 — raise sooner or cut burn"
+  🔴 "Out of cash before raise closes"
+─────────────────────────────────
+[Cashflow chart — Recharts ComposedChart]
+  - Area: cash balance (blue, with red fill below 0)
+  - Bars: monthly net burn (red) / net profit (green)
+  - Line: revenue (gray)
+  - Vertical marker line at fundraise month
+  - Horizontal zero line
+─────────────────────────────────
+[Monthly table — collapsible]
+  Month | Revenue | Gross profit | OpEx | Net burn | Cash balance
+  Row turns red when cash < 0
+─────────────────────────────────
+[Insights box]
+  - "Burn multiple: 1.8x (healthy <2x)"
+  - "Months of runway after raise: 22"
+  - "Break-even month: 28 (or 'Not within 36 months')"
+─────────────────────────────────
+[Export PNG button]
+```
+
+### Files
+
+**New:**
+- `src/lib/cashflow.ts` — types (`CashflowInputs`, `MonthlyCash`), `simulateCashflow()`, `findRunwayMonth()`, `computeBurnMultiple()`. Reuses `simulate()` from `src/lib/forecast.ts` for revenue.
+- `src/components/cashflow/CashflowControls.tsx` — sliders + preset dropdown
+- `src/components/cashflow/CashflowChart.tsx` — Recharts ComposedChart with cash area + burn bars
+- `src/components/cashflow/RunwayCards.tsx` — 3 stat cards + verdict banner
+- `src/components/cashflow/CashflowTable.tsx` — collapsible monthly breakdown
+- `src/pages/Cashflow.tsx` — page composition
+
+**Edited:**
+- `src/App.tsx` — register `/cashflow` route
+- `src/components/NavBar.tsx` — add "Cashflow & runway" link
 
 ### Out of scope
-- No changes to scenario multiplier philosophy beyond rewiring (`nrrAdd` → `churnRateMult` etc.).
-- No new files. No backend.
+- No backend, no save/load (state is in-memory like Forecast page)
+- No multi-scenario (bull/base/bear) — single deterministic model. Stress test can be added later.
+- No PDF export — just PNG via html-to-image (already in deps)
