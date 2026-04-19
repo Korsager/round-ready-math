@@ -67,10 +67,10 @@ export default function Forecast() {
     <div className="min-h-screen bg-white text-[#111827]" style={{ fontFamily: "Inter, ui-sans-serif, system-ui" }}>
       <NavBar />
 
-      <header className="max-w-[1100px] mx-auto px-4 pt-8 pb-4">
-        <h1 className="text-[28px] font-medium">The 36-month revenue forecast</h1>
-        <p className="text-[15px] text-[#6B7280] mt-1">Three paths. One decision. The number every investor checks.</p>
-        <p className="text-[12px] text-[#9CA3AF] mt-1">An interactive tool based on the framework from The Founders Corner.</p>
+      <header className="max-w-[1100px] mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-3 sm:pb-4">
+        <h1 className="text-[22px] sm:text-[28px] font-medium leading-tight">The 36-month revenue forecast</h1>
+        <p className="text-[13px] sm:text-[15px] text-[#6B7280] mt-1">Three paths. One decision. The number every investor checks.</p>
+        <p className="text-[11px] sm:text-[12px] text-[#9CA3AF] mt-1">An interactive tool based on the framework from The Founders Corner.</p>
       </header>
 
       <ControlPanel inputs={inputs} onChange={setInputs} onStressTest={onStressTest} stressing={stressing} />

@@ -38,12 +38,12 @@ export default function CashflowControls({ inputs, onChange }: Props) {
   };
 
   return (
-    <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border-b border-[#E5E7EB] py-4">
-      <div className="max-w-[1100px] mx-auto px-4 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <label className="text-[13px] text-[#6B7280]" htmlFor="cf-preset">Revenue model preset</label>
+    <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border-b border-[#E5E7EB] py-3 sm:py-4">
+      <div className="max-w-[1100px] mx-auto px-3 sm:px-4 space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <label className="text-[12px] sm:text-[13px] text-[#6B7280] shrink-0" htmlFor="cf-preset">Revenue preset</label>
           <Select onValueChange={applyPreset} defaultValue="custom">
-            <SelectTrigger id="cf-preset" className="w-full md:w-72 h-9 text-[13px]">
+            <SelectTrigger id="cf-preset" className="w-full sm:w-72 h-9 text-[13px]">
               <SelectValue placeholder="Choose preset" />
             </SelectTrigger>
             <SelectContent className="bg-white">
@@ -55,13 +55,13 @@ export default function CashflowControls({ inputs, onChange }: Props) {
         </div>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-[#6B7280] mb-2 font-semibold">Cash & costs</div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-[#6B7280] mb-2 font-semibold">Cash & costs</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             {cashFields.map((f) => (
-              <div key={f.key}>
-                <div className="flex justify-between items-baseline mb-2">
-                  <label htmlFor={f.key} className="text-[12px] text-[#6B7280]">{f.label}</label>
-                  <span className="text-[13px] font-medium text-[#111827] tabular-nums">{f.format(inputs[f.key])}</span>
+              <div key={f.key} className="min-w-0">
+                <div className="flex justify-between items-baseline mb-1.5 sm:mb-2 gap-1">
+                  <label htmlFor={f.key} className="text-[11px] sm:text-[12px] text-[#6B7280] truncate">{f.label}</label>
+                  <span className="text-[12px] sm:text-[13px] font-medium text-[#111827] tabular-nums shrink-0">{f.format(inputs[f.key])}</span>
                 </div>
                 <Slider id={f.key} min={f.min} max={f.max} step={f.step} value={[inputs[f.key]]} onValueChange={(v) => setCash(f.key, v[0])} />
               </div>
@@ -70,13 +70,13 @@ export default function CashflowControls({ inputs, onChange }: Props) {
         </div>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-[#6B7280] mb-2 font-semibold">Revenue assumptions</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-[#6B7280] mb-2 font-semibold">Revenue assumptions</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {revenueFields.map((f) => (
-              <div key={f.key}>
-                <div className="flex justify-between items-baseline mb-2">
-                  <label htmlFor={`rev-${f.key}`} className="text-[12px] text-[#6B7280]">{f.label}</label>
-                  <span className="text-[13px] font-medium text-[#111827] tabular-nums">{f.format(inputs.forecast[f.key])}</span>
+              <div key={f.key} className="min-w-0">
+                <div className="flex justify-between items-baseline mb-1.5 sm:mb-2 gap-1">
+                  <label htmlFor={`rev-${f.key}`} className="text-[11px] sm:text-[12px] text-[#6B7280] truncate">{f.label}</label>
+                  <span className="text-[12px] sm:text-[13px] font-medium text-[#111827] tabular-nums shrink-0">{f.format(inputs.forecast[f.key])}</span>
                 </div>
                 <Slider id={`rev-${f.key}`} min={f.min} max={f.max} step={f.step} value={[inputs.forecast[f.key]]} onValueChange={(v) => setRev(f.key, v[0])} />
               </div>

@@ -35,46 +35,50 @@ export default function ControlPanel({ inputs, onChange, onStressTest, stressing
   const nrrPositive = derivedNRR >= 100;
 
   return (
-    <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border-b border-[#E5E7EB] py-4">
-      <div className="max-w-[1100px] mx-auto px-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-          <label className="text-[13px] text-[#6B7280]" htmlFor="preset">Business model preset</label>
-          <Select onValueChange={applyPreset} defaultValue="custom">
-            <SelectTrigger id="preset" className="w-full md:w-72 h-9 text-[13px]">
-              <SelectValue placeholder="Choose preset" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {PRESETS.map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={onStressTest}
-            disabled={stressing}
-            variant="outline"
-            className="h-9 text-[13px] border-[#EF4444] text-[#EF4444] hover:bg-[#FEE2E2] hover:text-[#991B1B]"
-          >
-            {stressing ? "Stress testing…" : "Stress test"}
-          </Button>
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-medium md:ml-auto"
-            style={{
-              background: nrrPositive ? "#D1FAE5" : "#FEE2E2",
-              color: nrrPositive ? "#065F46" : "#991B1B",
-            }}
-            title="Derived from gross churn, downgrades and expansion"
-          >
-            Derived annual NRR: {derivedNRR.toFixed(0)}%
-          </span>
+    <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border-b border-[#E5E7EB] py-3 sm:py-4">
+      <div className="max-w-[1100px] mx-auto px-3 sm:px-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-3 md:mb-4">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <label className="text-[12px] sm:text-[13px] text-[#6B7280] shrink-0" htmlFor="preset">Preset</label>
+            <Select onValueChange={applyPreset} defaultValue="custom">
+              <SelectTrigger id="preset" className="w-full md:w-72 h-9 text-[13px]">
+                <SelectValue placeholder="Choose preset" />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {PRESETS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 justify-between md:justify-end">
+            <Button
+              onClick={onStressTest}
+              disabled={stressing}
+              variant="outline"
+              className="h-9 text-[12px] sm:text-[13px] border-[#EF4444] text-[#EF4444] hover:bg-[#FEE2E2] hover:text-[#991B1B]"
+            >
+              {stressing ? "Testing…" : "Stress test"}
+            </Button>
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] sm:text-[12px] font-medium whitespace-nowrap"
+              style={{
+                background: nrrPositive ? "#D1FAE5" : "#FEE2E2",
+                color: nrrPositive ? "#065F46" : "#991B1B",
+              }}
+              title="Derived from gross churn, downgrades and expansion"
+            >
+              NRR: {derivedNRR.toFixed(0)}%
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {fields.map((f) => (
-            <div key={f.key}>
-              <div className="flex justify-between items-baseline mb-2">
-                <label htmlFor={f.key} className="text-[12px] text-[#6B7280]">{f.label}</label>
-                <span className="text-[13px] font-medium text-[#111827] tabular-nums">{f.format(inputs[f.key])}</span>
+            <div key={f.key} className="min-w-0">
+              <div className="flex justify-between items-baseline mb-1.5 sm:mb-2 gap-1">
+                <label htmlFor={f.key} className="text-[11px] sm:text-[12px] text-[#6B7280] truncate">{f.label}</label>
+                <span className="text-[12px] sm:text-[13px] font-medium text-[#111827] tabular-nums shrink-0">{f.format(inputs[f.key])}</span>
               </div>
               <Slider
                 id={f.key}
