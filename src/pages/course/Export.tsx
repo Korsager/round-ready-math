@@ -1,16 +1,43 @@
-import { useState } from "react";
-import { FileJson, FileText, Presentation, Check, RotateCcw } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { FileJson, FileText, Presentation, Check, RotateCcw, Loader2 } from "lucide-react";
+import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import CourseLayout from "@/components/course/CourseLayout";
 import { useAssumptions } from "@/lib/assumptions";
 import { exportPdf } from "@/lib/exportPdf";
 import { exportPptx } from "@/lib/exportPptx";
 import { loadPricingStrategy } from "@/lib/pricingStrategy";
+import { runScenario } from "@/lib/forecast";
+import { simulateCashflow } from "@/lib/cashflow";
+import ForecastChart from "@/components/forecast/ForecastChart";
+import CashflowChart from "@/components/cashflow/CashflowChart";
 
 export default function CourseExport() {
   const { assumptions } = useAssumptions();
   const [done, setDone] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
   const mark = (k: string) => setDone((s) => new Set(s).add(k));
+
+  const forecastRef = useRef<HTMLDivElement>(null);
+  const cashflowRef = useRef<HTMLDivElement>(null);
+
+  const { bull, base, bear, cf } = useMemo(() => ({
+    bull: runScenario(assumptions.forecast, "bull"),
+    base: runScenario(assumptions.forecast, "base"),
+    bear: runScenario(assumptions.forecast, "bear"),
+    cf: simulateCashflow({ ...assumptions.cashflow, forecast: assumptions.forecast }, 36),
+  }), [assumptions]);
+
+  const captureCharts = async () => {
+    const opts = { pixelRatio: 2, backgroundColor: "#ffffff", cacheBust: true };
+    // Wait one frame so recharts ResponsiveContainer settles in the offscreen wrapper.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const [forecastImg, cashflowImg] = await Promise.all([
+      forecastRef.current ? toPng(forecastRef.current, opts) : Promise.resolve(undefined),
+      cashflowRef.current ? toPng(cashflowRef.current, opts) : Promise.resolve(undefined),
+    ]);
+    return { forecastImg, cashflowImg };
+  };
 
   const downloadJson = () => {
     const payload = { ...assumptions, pricing: loadPricingStrategy() };
@@ -24,8 +51,23 @@ export default function CourseExport() {
     mark("json");
   };
 
-  const downloadPdf = () => { exportPdf(assumptions, loadPricingStrategy()); mark("pdf"); };
-  const downloadPptx = () => { exportPptx(assumptions, loadPricingStrategy()); mark("pptx"); };
+  const downloadPdf = async () => {
+    setBusy("pdf");
+    try {
+      const charts = await captureCharts();
+      await exportPdf(assumptions, loadPricingStrategy(), charts);
+      mark("pdf");
+    } finally { setBusy(null); }
+  };
+
+  const downloadPptx = async () => {
+    setBusy("pptx");
+    try {
+      const charts = await captureCharts();
+      await exportPptx(assumptions, loadPricingStrategy(), charts);
+      mark("pptx");
+    } finally { setBusy(null); }
+  };
 
   return (
     <CourseLayout
@@ -38,26 +80,29 @@ export default function CourseExport() {
         <ExportCard
           icon={FileJson}
           title="Plan backup"
-          desc="JSON file with all your assumptions. Import it next time to pick up exactly where you left off."
+          desc="JSON file with all your assumptions and pricing fields. Import it next time to pick up exactly where you left off."
           cta="Download JSON"
           onClick={downloadJson}
           done={done.has("json")}
+          busy={false}
         />
         <ExportCard
           icon={FileText}
           title="PDF report"
-          desc="Multi-page summary covering pricing, revenue forecast, fundraising math, and cashflow runway."
+          desc="Multi-page summary covering pricing, revenue forecast (with chart), fundraising math, and cashflow runway (with chart)."
           cta="Download PDF"
           onClick={downloadPdf}
           done={done.has("pdf")}
+          busy={busy === "pdf"}
         />
         <ExportCard
           icon={Presentation}
           title="Investor presentation"
-          desc="PPTX deck — cover, one slide per section, and a summary. Open in Keynote, PowerPoint, or Google Slides."
+          desc="PPTX deck with cover, pricing strategy, forecast & cashflow charts, fundraising math, and a summary slide."
           cta="Download PPTX"
           onClick={downloadPptx}
           done={done.has("pptx")}
+          busy={busy === "pptx"}
         />
       </div>
 
@@ -72,13 +117,33 @@ export default function CourseExport() {
           </Button>
         </a>
       </div>
+
+      {/* Hidden offscreen charts, used only for image capture */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          left: "-10000px",
+          top: 0,
+          width: 1100,
+          pointerEvents: "none",
+          opacity: 1,
+        }}
+      >
+        <div style={{ width: 1100 }}>
+          <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={assumptions.forecast.startingMRR} />
+        </div>
+        <div ref={cashflowRef} style={{ width: 1100 }}>
+          <CashflowChart result={cf} monthsUntilRaise={assumptions.cashflow.monthsUntilRaise} />
+        </div>
+      </div>
     </CourseLayout>
   );
 }
 
 function ExportCard({
-  icon: Icon, title, desc, cta, onClick, done,
-}: { icon: any; title: string; desc: string; cta: string; onClick: () => void; done: boolean }) {
+  icon: Icon, title, desc, cta, onClick, done, busy,
+}: { icon: any; title: string; desc: string; cta: string; onClick: () => void; done: boolean; busy: boolean }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -93,7 +158,9 @@ function ExportCard({
       </div>
       <h3 className="text-[15px] font-semibold text-[#111827]">{title}</h3>
       <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed flex-1">{desc}</p>
-      <Button onClick={onClick} size="sm" className="mt-4 h-9">{cta}</Button>
+      <Button onClick={onClick} disabled={busy} size="sm" className="mt-4 h-9">
+        {busy ? (<><Loader2 size={14} className="mr-1.5 animate-spin" /> Generating…</>) : cta}
+      </Button>
     </div>
   );
 }
