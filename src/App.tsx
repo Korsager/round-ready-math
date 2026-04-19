@@ -3,11 +3,6 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import Forecast from "./pages/Forecast.tsx";
-import Cashflow from "./pages/Cashflow.tsx";
-import PricingPlaybook from "./pages/PricingPlaybook.tsx";
-import Assumptions from "./pages/Assumptions.tsx";
 import Start from "./pages/Start.tsx";
 import CoursePricing from "./pages/course/Pricing.tsx";
 import CourseRevenue from "./pages/course/Revenue.tsx";
@@ -32,11 +27,12 @@ const App = () => (
           <Route path="/course/fundraising" element={<CourseFundraising />} />
           <Route path="/course/cashflow" element={<CourseCashflow />} />
           <Route path="/course/export" element={<CourseExport />} />
-          <Route path="/dashboard" element={<Index />} />
-          <Route path="/forecast" element={<Forecast />} />
-          <Route path="/cashflow" element={<Cashflow />} />
-          <Route path="/pricing-playbook" element={<PricingPlaybook />} />
-          <Route path="/assumptions" element={<Assumptions />} />
+          {/* Legacy routes redirect into the course */}
+          <Route path="/dashboard" element={<Navigate to="/start" replace />} />
+          <Route path="/assumptions" element={<Navigate to="/start" replace />} />
+          <Route path="/forecast" element={<Navigate to="/course/revenue" replace />} />
+          <Route path="/cashflow" element={<Navigate to="/course/cashflow" replace />} />
+          <Route path="/pricing-playbook" element={<Navigate to="/course/pricing" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Rocket, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StepProgress, { COURSE_STEPS, type CourseStepId } from "./StepProgress";
 
@@ -34,9 +34,7 @@ export default function CourseLayout({ step, title, intro, children, nextLabel, 
             <Rocket size={16} className="text-primary" />
             <span className="text-[13px] font-medium text-[#111827]">Founders Toolkit · Course</span>
           </div>
-          <Link to="/assumptions" className="text-[12px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-            <LogOut size={12} /> Exit course
-          </Link>
+          <span className="text-[11px] text-muted-foreground">Saved automatically</span>
         </div>
       </header>
 
