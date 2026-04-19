@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import NavBar from "@/components/NavBar";
+
 
 // ---------- Types ----------
 type PricingModel = "Tiered" | "Usage-based" | "Freemium" | "Free Trial" | "Hybrid";
@@ -123,7 +123,6 @@ export default function PricingPlaybook() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NavBar />
 
       {/* Hero */}
       <section className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background">
