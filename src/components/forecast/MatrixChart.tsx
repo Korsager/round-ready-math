@@ -54,8 +54,8 @@ const MatrixChart = forwardRef<HTMLDivElement, Props>(({ inputs, onCellClick }, 
                 <div key={g} className="text-[11px] text-[#6B7280] text-center">{g}%</div>
               ))}
               {m.nrrRows.map((nrr, ri) => (
-                <>
-                  <div key={`r-${nrr}`} className="text-[11px] text-[#6B7280] text-right pr-2 self-center">{nrr}%</div>
+                <div key={`row-${nrr}`} className="contents">
+                  <div className="text-[11px] text-[#6B7280] text-right pr-2 self-center">{nrr}%</div>
                   {m.growCols.map((g, ci) => {
                     const v = m.values[ri][ci];
                     const t = (v - m.min) / (m.max - m.min || 1);
@@ -78,7 +78,7 @@ const MatrixChart = forwardRef<HTMLDivElement, Props>(({ inputs, onCellClick }, 
                       </button>
                     );
                   })}
-                </>
+                </div>
               ))}
             </div>
             <div className="text-center text-[11px] text-[#6B7280] mt-3">Monthly new revenue growth rate</div>
