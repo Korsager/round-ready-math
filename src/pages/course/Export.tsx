@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { FileJson, FileText, Presentation, Check, ExternalLink } from "lucide-react";
-import { Link } from "react-router-dom";
+import { FileJson, FileText, Presentation, Check, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CourseLayout from "@/components/course/CourseLayout";
 import { useAssumptions } from "@/lib/assumptions";
