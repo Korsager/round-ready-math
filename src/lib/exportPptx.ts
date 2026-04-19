@@ -13,7 +13,12 @@ const ACCENT = "F96167";
 const INK = "111827";
 const MUTED = "6B7280";
 
-export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy) {
+export interface ExportCharts {
+  forecastImg?: string;
+  cashflowImg?: string;
+}
+
+export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
   const pricing = pricingArg ?? loadPricingStrategy();
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
