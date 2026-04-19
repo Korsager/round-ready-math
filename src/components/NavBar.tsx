@@ -15,6 +15,7 @@ export default function NavBar() {
         </div>
         <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto no-scrollbar -mx-1 px-1 flex-1 justify-end">
           <NavLink to="/" end className={linkCls}>Fundraise</NavLink>
+          <NavLink to="/assumptions" className={linkCls}>Assumptions</NavLink>
           <NavLink to="/forecast" className={linkCls}>Forecast</NavLink>
           <NavLink to="/cashflow" className={linkCls}>Cashflow</NavLink>
           <NavLink to="/pricing-playbook" className={linkCls}>Pricing</NavLink>

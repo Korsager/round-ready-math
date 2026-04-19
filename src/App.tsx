@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import Forecast from "./pages/Forecast.tsx";
 import Cashflow from "./pages/Cashflow.tsx";
 import PricingPlaybook from "./pages/PricingPlaybook.tsx";
+import Assumptions from "./pages/Assumptions.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/cashflow" element={<Cashflow />} />
           <Route path="/pricing-playbook" element={<PricingPlaybook />} />
+          <Route path="/assumptions" element={<Assumptions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
