@@ -11,6 +11,7 @@ import { useAssumptions } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
 import { requiredMonthlyGrowth } from "@/lib/forecast";
 import { computePlanSummary, fmtPlanMoney } from "@/lib/planSummary";
+import { monthCalendar } from "@/lib/dateAnchor";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);

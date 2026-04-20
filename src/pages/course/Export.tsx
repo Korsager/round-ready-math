@@ -133,10 +133,10 @@ export default function CourseExport() {
         }}
       >
         <div style={{ width: 1100 }}>
-          <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={assumptions.forecast.startingMRR} />
+          <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={assumptions.forecast.startingMRR} planStartDate={assumptions.planStartDate} />
         </div>
         <div ref={cashflowRef} style={{ width: 1100 }}>
-          <CashflowChart result={cf} monthsUntilRaise={assumptions.cashflow.monthsUntilRaise} />
+          <CashflowChart result={cf} monthsUntilRaise={assumptions.cashflow.monthsUntilRaise} planStartDate={assumptions.planStartDate} />
         </div>
       </div>
     </CourseLayout>

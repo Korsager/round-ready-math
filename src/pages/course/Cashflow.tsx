@@ -108,8 +108,8 @@ export default function CourseCashflow() {
             </section>
 
             <div className="space-y-4 min-w-0">
-              <RunwayCards result={result} monthsUntilRaise={c.monthsUntilRaise} />
-              <CashflowChart result={result} monthsUntilRaise={c.monthsUntilRaise} />
+              <RunwayCards result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
+              <CashflowChart result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
               <CashflowTable result={result} />
             </div>
           </div>

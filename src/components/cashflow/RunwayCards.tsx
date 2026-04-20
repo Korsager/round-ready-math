@@ -1,10 +1,12 @@
 import type { CashflowResult } from "@/lib/cashflow";
 import { fmtDollars } from "@/lib/format";
+import { monthCalendar } from "@/lib/dateAnchor";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 interface Props {
   result: CashflowResult;
   monthsUntilRaise: number;
+  planStartDate: string;
 }
 
 function runwayLabel(result: CashflowResult): { value: string; tone: "good" | "warn" | "bad" } {
@@ -20,10 +22,11 @@ const toneStyles = {
   bad: { bg: "#FEE2E2", text: "#991B1B", border: "#EF4444" },
 };
 
-export default function RunwayCards({ result, monthsUntilRaise }: Props) {
+export default function RunwayCards({ result, monthsUntilRaise, planStartDate }: Props) {
   const runway = runwayLabel(result);
   const cashAtRaise = result.months[Math.min(monthsUntilRaise, result.months.length - 1)]?.cashBalance ?? 0;
   const outBeforeRaise = result.runwayMonth !== null && result.runwayMonth < monthsUntilRaise;
+  const cal = (m: number) => monthCalendar(planStartDate, m);
 
   let verdictIcon = <CheckCircle2 size={20} className="text-[#10B981]" />;
   let verdictText = "Default-alive within 36 months — fundable trajectory";
@@ -31,14 +34,14 @@ export default function RunwayCards({ result, monthsUntilRaise }: Props) {
 
   if (outBeforeRaise) {
     verdictIcon = <XCircle size={20} className="text-[#EF4444]" />;
-    verdictText = `You run out of cash in month ${result.runwayMonth} — before your raise closes (month ${monthsUntilRaise}). Cut burn or raise sooner.`;
+    verdictText = `You run out of cash in month ${result.runwayMonth} (${cal(result.runwayMonth!)}) — before your raise closes (month ${monthsUntilRaise}, ${cal(monthsUntilRaise)}). Cut burn or raise sooner.`;
     verdictTone = "bad";
   } else if (result.runwayMonth !== null && result.runwayMonth < 18) {
     verdictIcon = <AlertTriangle size={20} className="text-[#F59E0B]" />;
-    verdictText = `You run out of cash in month ${result.runwayMonth}. Less than 18 months of runway — investors will push back.`;
+    verdictText = `You run out of cash in month ${result.runwayMonth} (${cal(result.runwayMonth)}). Less than 18 months of runway — investors will push back.`;
     verdictTone = "warn";
   } else if (result.defaultAliveMonth !== null) {
-    verdictText = `You reach default-alive in month ${result.defaultAliveMonth} — strong fundraising position.`;
+    verdictText = `You reach default-alive in month ${result.defaultAliveMonth} (${cal(result.defaultAliveMonth)}) — strong fundraising position.`;
   } else if (result.runwayMonth === null) {
     verdictText = "Cash lasts 36+ months but you don't reach profitability — plan another raise.";
     verdictTone = "warn";
@@ -46,9 +49,9 @@ export default function RunwayCards({ result, monthsUntilRaise }: Props) {
   }
 
   const cards = [
-    { label: "Runway", value: runway.value, sub: result.runwayMonth === null ? "Never runs out" : `Out of cash month ${result.runwayMonth}`, tone: runway.tone },
-    { label: "Cash at month 36", value: fmtDollars(result.endingCash), sub: result.endingCash > 0 ? "Positive position" : "Underwater", tone: result.endingCash > 0 ? ("good" as const) : ("bad" as const) },
-    { label: "Default-alive", value: result.defaultAliveMonth ? `Month ${result.defaultAliveMonth}` : "Not reached", sub: result.defaultAliveMonth ? "Gross profit ≥ OpEx" : "Within 36 months", tone: result.defaultAliveMonth ? ("good" as const) : ("warn" as const) },
+    { label: "Runway", value: runway.value, sub: result.runwayMonth === null ? "Never runs out" : `Out of cash month ${result.runwayMonth} (${cal(result.runwayMonth)})`, tone: runway.tone },
+    { label: "Cash at month 36", value: fmtDollars(result.endingCash), sub: result.endingCash > 0 ? `As of ${cal(36)}` : "Underwater", tone: result.endingCash > 0 ? ("good" as const) : ("bad" as const) },
+    { label: "Default-alive", value: result.defaultAliveMonth ? `Month ${result.defaultAliveMonth}` : "Not reached", sub: result.defaultAliveMonth ? cal(result.defaultAliveMonth) : "Within 36 months", tone: result.defaultAliveMonth ? ("good" as const) : ("warn" as const) },
   ];
 
   const v = toneStyles[verdictTone];
