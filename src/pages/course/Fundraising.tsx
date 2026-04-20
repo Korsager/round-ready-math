@@ -2,13 +2,15 @@ import { useMemo } from "react";
 import {
   PieChart as RPieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip,
 } from "recharts";
-import { TrendingUp, Target, BarChart3, PieChart, LineChart, ChevronDown } from "lucide-react";
+import { TrendingUp, Target, BarChart3, PieChart, LineChart, ChevronDown, AlertTriangle, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import CourseLayout from "@/components/course/CourseLayout";
 import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import { useAssumptions } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
 import { requiredMonthlyGrowth } from "@/lib/forecast";
+import { computePlanSummary, fmtPlanMoney } from "@/lib/planSummary";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
