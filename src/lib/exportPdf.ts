@@ -164,11 +164,28 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Starting OpEx", `${fmtUsd(a.cashflow.startingBurn)}/mo`);
   row("OpEx growth", `${a.cashflow.opexGrowthRate}%/mo`);
   row("Gross margin", `${a.cashflow.grossMargin}%`);
-  row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise}`);
+  row("Fundraise inflow (current)", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise}`);
   row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth}` : "Beyond 36 months");
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth}` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
+  y += 12;
+
+  // Capital plan — multi-round summary
+  subhead("Capital plan to month 36");
+  row("Rounds to month 36", `${cf.plannedRaises.filter((r) => r.month <= 36 && r.amount > 0).length}`);
+  row("Total raised", fmtM(cf.totalRaisedTo36));
+  row("Cumulative dilution", `${cf.cumulativeDilutionPct.toFixed(1)}%`);
+  row("Founder ownership at m36", `${cf.founderOwnershipAtM36.toFixed(1)}%`);
+  if (cf.autoPlanExhausted) {
+    para("Auto-plan hit its max-rounds cap and the plan still runs out of cash. Raise more in earlier rounds, cut burn, or extend the target.");
+  }
+  y += 6;
+  subhead("Round schedule");
+  cf.plannedRaises.filter((r) => r.month <= 36 && r.amount > 0).forEach((r) => {
+    const tag = r.source === "current" ? "current" : r.source === "auto" ? "auto" : "manual";
+    row(`${r.label} (${tag}) — mo ${r.month}`, `${fmtM(r.amount)} · ${r.dilutionPct.toFixed(0)}% dilution`);
+  });
   y += 12;
 
   if (charts?.cashflowImg) {
