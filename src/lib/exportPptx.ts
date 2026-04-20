@@ -96,10 +96,15 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     if (t.annualPrice?.trim()) {
       tierSlide.addText(`${t.annualPrice} annual`, { x: x + 0.25, y: tierStartY + 1.95, w: tierW - 0.5, h: 0.3, fontSize: 11, color: MUTED });
     }
+    const c0 = t.customersMonth0 || 0;
+    const cn = t.newCustomersPerMonth || 0;
+    if (c0 > 0 || cn > 0) {
+      tierSlide.addText(`${c0} customers · +${cn}/mo`, { x: x + 0.25, y: tierStartY + 2.25, w: tierW - 0.5, h: 0.3, fontSize: 11, bold: true, color: ACCENT });
+    }
     const features = (t.features || "").split("\n").map((f) => f.trim()).filter(Boolean);
     if (features.length) {
       tierSlide.addText(features.map((f) => ({ text: f, options: { bullet: { code: "2022" } } })), {
-        x: x + 0.25, y: tierStartY + 2.4, w: tierW - 0.5, h: tierH - 2.6, fontSize: 11, color: INK, fontFace: "Calibri", paraSpaceAfter: 4,
+        x: x + 0.25, y: tierStartY + 2.65, w: tierW - 0.5, h: tierH - 2.85, fontSize: 11, color: INK, fontFace: "Calibri", paraSpaceAfter: 4,
       });
     }
   });

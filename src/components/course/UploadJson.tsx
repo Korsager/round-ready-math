@@ -12,7 +12,23 @@ function mergeAssumptions(parsed: any): Assumptions {
     fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
     cashflow: { ...DEFAULT_CASHFLOW, ...(parsed?.cashflow ?? {}) },
+    forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
   };
+}
+
+function mergePricing(parsed: any) {
+  const base = blankPricingStrategy();
+  if (!parsed) return base;
+  const tiers = base.tiers.map((bt, i) => {
+    const raw = parsed?.tiers?.[i] ?? {};
+    return {
+      ...bt,
+      ...raw,
+      customersMonth0: Number.isFinite(raw.customersMonth0) ? Number(raw.customersMonth0) : 0,
+      newCustomersPerMonth: Number.isFinite(raw.newCustomersPerMonth) ? Number(raw.newCustomersPerMonth) : 0,
+    };
+  }) as typeof base.tiers;
+  return { ...base, ...parsed, tiers };
 }
 
 export default function UploadJson() {
@@ -37,7 +53,7 @@ export default function UploadJson() {
       setForecast(merged.forecast);
       setCashflow(merged.cashflow);
       if (parsed?.pricing) {
-        savePricingStrategy({ ...blankPricingStrategy(), ...parsed.pricing });
+        savePricingStrategy(mergePricing(parsed.pricing));
       }
       navigate("/course/pricing");
     } catch (e) {

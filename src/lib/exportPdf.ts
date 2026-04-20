@@ -95,6 +95,9 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
     if (t.job?.trim()) row("Job to be done", t.job);
     if (t.monthlyPrice?.trim()) row("Monthly price", t.monthlyPrice);
     if (t.annualPrice?.trim()) row("Annual price", t.annualPrice);
+    if ((t.customersMonth0 || 0) > 0 || (t.newCustomersPerMonth || 0) > 0) {
+      row("Customers · new/mo", `${t.customersMonth0 || 0} customers · +${t.newCustomersPerMonth || 0}/mo`);
+    }
     labeledBlock("Features", t.features);
   });
 

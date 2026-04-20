@@ -24,6 +24,7 @@ export interface Assumptions {
   fundraise: FundraiseAssumptions;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
+  forecastManuallyEdited: boolean;
 }
 
 export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
@@ -38,6 +39,7 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
+  forecastManuallyEdited: false,
 };
 
 const STORAGE_KEY = "founders-toolkit-assumptions-v1";
@@ -52,6 +54,7 @@ function load(): Assumptions {
       fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed.fundraise ?? {}) },
       forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
       cashflow: { ...DEFAULT_CASHFLOW, ...(parsed.cashflow ?? {}) },
+      forecastManuallyEdited: !!parsed.forecastManuallyEdited,
     };
   } catch {
     return DEFAULT_ASSUMPTIONS;
@@ -75,9 +78,18 @@ export function useAssumptions() {
     return () => { listeners.delete(l); };
   }, []);
 
+  // User-driven forecast edits — flips the manual-edit flag.
   const setForecast = useCallback((f: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => {
     const next = typeof f === "function" ? (f as (p: ForecastInputs) => ForecastInputs)(current.forecast) : f;
+    save({ ...current, forecast: next, forecastManuallyEdited: true });
+  }, []);
+  // Programmatic seeding from pricing — does NOT flip the flag.
+  const seedForecast = useCallback((f: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => {
+    const next = typeof f === "function" ? (f as (p: ForecastInputs) => ForecastInputs)(current.forecast) : f;
     save({ ...current, forecast: next });
+  }, []);
+  const clearForecastEditedFlag = useCallback(() => {
+    save({ ...current, forecastManuallyEdited: false });
   }, []);
   const setCashflow = useCallback((c: CashflowAssumptions | ((p: CashflowAssumptions) => CashflowAssumptions)) => {
     const next = typeof c === "function" ? (c as (p: CashflowAssumptions) => CashflowAssumptions)(current.cashflow) : c;
@@ -89,7 +101,7 @@ export function useAssumptions() {
   }, []);
   const reset = useCallback(() => save(DEFAULT_ASSUMPTIONS), []);
 
-  return { assumptions: state, setForecast, setCashflow, setFundraise, reset };
+  return { assumptions: state, setForecast, seedForecast, clearForecastEditedFlag, setCashflow, setFundraise, reset };
 }
 
 export function parseShorthand(raw: string): number | null {
