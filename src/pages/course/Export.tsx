@@ -8,6 +8,7 @@ import { exportPdf } from "@/lib/exportPdf";
 import { exportPptx } from "@/lib/exportPptx";
 import { runScenario } from "@/lib/forecast";
 import { simulateCashflow } from "@/lib/cashflow";
+import { computePlanSummary } from "@/lib/planSummary";
 import ForecastChart from "@/components/forecast/ForecastChart";
 import CashflowChart from "@/components/cashflow/CashflowChart";
 
