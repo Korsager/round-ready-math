@@ -286,7 +286,7 @@ function TiersStep({ s, updateTier }: { s: PricingStrategy; updateTier: (i: 0|1|
               <Input value={t.name} onChange={(e) => updateTier(i as 0|1|2, { name: e.target.value })} />
             </Field>
             <Field label="Job of this tier">
-              <Input value={t.job} onChange={(e) => updateTier(i as 0|1|2, { job: e.target.value })} />
+              <Textarea rows={3} value={t.job} onChange={(e) => updateTier(i as 0|1|2, { job: e.target.value })} />
             </Field>
             <Field label="Features (one per line)">
               <Textarea rows={6} value={t.features}
