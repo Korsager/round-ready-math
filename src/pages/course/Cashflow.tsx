@@ -18,10 +18,10 @@ const fmtPct = (d = 1) => (v: number) => `${v.toFixed(d)}%`;
 const fmtNum = (s = "") => (v: number) => `${v.toLocaleString("en-US")}${s}`;
 
 export default function CourseCashflow() {
-  const { assumptions, setCashflow, setForecastOverrides } = useAssumptions();
+  const { assumptions, setCashflow, setForecastOverrides, setPlanStartDate } = useAssumptions();
   const c = assumptions.cashflow;
   const fundraiseAmount = assumptions.fundraise.raise;
-  const { forecastOverrides, pricing } = assumptions;
+  const { forecastOverrides, pricing, planStartDate } = assumptions;
   const [showDetails, setShowDetails] = useState(false);
 
   const seedGM = useMemo(() => derivedGrossMargin(pricing), [pricing]);
