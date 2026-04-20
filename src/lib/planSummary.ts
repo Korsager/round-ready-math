@@ -26,6 +26,9 @@ export interface PlanSummary {
   raise: number;
   yearsToExit: number;
   requiredExit: number;
+  postMoney: number;
+  valuationPerRunwayMonth: number | null;
+  dilutionPerRunwayMonth: number | null;
   cfBase: CashflowResult;
   cfBull: CashflowResult;
   cfBear: CashflowResult;
