@@ -13,7 +13,6 @@ export interface FundraiseAssumptions {
 
 export interface CashflowAssumptions {
   startingCash: number;
-  fundraiseAmount: number;
   monthsUntilRaise: number;
   startingBurn: number;
   opexGrowthRate: number;
@@ -50,10 +49,12 @@ function load(): Assumptions {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_ASSUMPTIONS;
     const parsed = JSON.parse(raw);
+    // Discard the legacy fundraiseAmount field — raise lives on the fundraise slice.
+    const { fundraiseAmount: _legacy, ...cashflowRest } = parsed.cashflow ?? {};
     return {
       fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed.fundraise ?? {}) },
       forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
-      cashflow: { ...DEFAULT_CASHFLOW, ...(parsed.cashflow ?? {}) },
+      cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
       forecastManuallyEdited: !!parsed.forecastManuallyEdited,
     };
   } catch {

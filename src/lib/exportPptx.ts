@@ -31,7 +31,7 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
   const calcIrr = a.fundraise.yearsToExit > 0 && a.fundraise.targetMoic > 0
     ? (Math.pow(a.fundraise.targetMoic, 1 / a.fundraise.yearsToExit) - 1) * 100 : 0;
   const base = runScenario(a.forecast, "base");
-  const cf = simulateCashflow({ ...a.cashflow, forecast: a.forecast }, 36);
+  const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
 
   // Cover
   const cover = pres.addSlide();
@@ -171,7 +171,7 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     { label: "After raise", value: cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo` },
     { label: "Break-even", value: cf.breakEvenMonth ? `Mo ${cf.breakEvenMonth}` : "Not in 36 mo" },
     { label: "Burn multiple", value: isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞" },
-    { label: "Raise size", value: fmtM(a.cashflow.fundraiseAmount) },
+    { label: "Raise size", value: fmtM(a.fundraise.raise) },
     { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise}` },
   ], `Healthy burn multiple is < 2×. Above signals inefficient growth.`);
 
