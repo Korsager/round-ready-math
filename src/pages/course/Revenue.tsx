@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, AlertTriangle, X } from "lucide-react";
+import { Sparkles, AlertTriangle, X, Lock, Unlock } from "lucide-react";
 import CourseLayout from "@/components/course/CourseLayout";
 import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import StatCards from "@/components/forecast/StatCards";
@@ -8,8 +8,11 @@ import MatrixChart from "@/components/forecast/MatrixChart";
 import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
-import { DEFAULT_INPUTS } from "@/lib/presets";
-import { deriveRevenueFromPricing } from "@/lib/pricingStrategy";
+import {
+  deriveRevenueFromPricing,
+  derivedStartingMRR,
+  derivedMonthlyNewBookings,
+} from "@/lib/pricingStrategy";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -19,50 +22,75 @@ const fmtPct = (digits = 1) => (v: number) => `${v.toFixed(digits)}%`;
 const fmtNum = (suffix = "") => (v: number) => `${v.toLocaleString("en-US")}${suffix}`;
 
 export default function CourseRevenue() {
-  const { assumptions, setForecast, seedForecast, clearForecastEditedFlag } = useAssumptions();
-  const { forecast, forecastManuallyEdited, pricing } = assumptions;
+  const {
+    assumptions, setForecast, seedForecast, clearForecastEditedFlag, setForecastOverrides,
+  } = useAssumptions();
+  const { forecast, forecastManuallyEdited, pricing, forecastOverrides } = assumptions;
 
-  // Pricing now lives in the unified assumptions store — derive live.
+  // Pricing-derived seeds — kept in sync live whenever pricing changes.
+  const seedMRR = useMemo(() => derivedStartingMRR(pricing), [pricing]);
+  const seedBookings = useMemo(() => derivedMonthlyNewBookings(pricing), [pricing]);
   const derivedFromPricing = useMemo(() => deriveRevenueFromPricing(pricing), [pricing]);
   const tierCount = derivedFromPricing.perTier.filter((t) => t.mrrContribution > 0).length;
 
-  // Fallback seed on first mount: if forecast is untouched defaults AND pricing yields a value, seed.
-  const seededOnceRef = useRef(false);
+  // Auto-derive: when a field is unlocked, push the pricing-derived value into
+  // the forecast on every change. Only writes when the value differs.
   useEffect(() => {
-    if (seededOnceRef.current) return;
-    seededOnceRef.current = true;
-    const isUntouched =
-      !forecastManuallyEdited &&
-      forecast.startingMRR === DEFAULT_INPUTS.startingMRR &&
-      forecast.monthlyNewBookings === DEFAULT_INPUTS.monthlyNewBookings;
-    if (isUntouched && derivedFromPricing.startingMRR > 0) {
-      seedForecast({
-        ...forecast,
-        startingMRR: derivedFromPricing.startingMRR,
-        monthlyNewBookings: derivedFromPricing.monthlyNewBookings,
-      });
+    if (forecastOverrides.startingMRRLocked) return;
+    if (Math.abs(forecast.startingMRR - seedMRR) > 0.5) {
+      seedForecast({ ...forecast, startingMRR: seedMRR });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [seedMRR, forecastOverrides.startingMRRLocked]);
+
+  useEffect(() => {
+    if (forecastOverrides.newBookingsLocked) return;
+    if (Math.abs(forecast.monthlyNewBookings - seedBookings) > 0.5) {
+      seedForecast({ ...forecast, monthlyNewBookings: seedBookings });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedBookings, forecastOverrides.newBookingsLocked]);
 
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const isStale =
-    forecastManuallyEdited &&
-    derivedFromPricing.startingMRR > 0 &&
-    Math.abs(derivedFromPricing.startingMRR - forecast.startingMRR) > 1;
   const isFreshSeed =
     !forecastManuallyEdited &&
-    derivedFromPricing.startingMRR > 0 &&
-    Math.abs(derivedFromPricing.startingMRR - forecast.startingMRR) <= 1;
+    seedMRR > 0 &&
+    !forecastOverrides.startingMRRLocked &&
+    Math.abs(seedMRR - forecast.startingMRR) <= 1;
+
+  // "Stale" banner only matters when overrides are locked (auto-derive off).
+  const isStale =
+    forecastOverrides.startingMRRLocked &&
+    seedMRR > 0 &&
+    Math.abs(seedMRR - forecast.startingMRR) > 1;
 
   const reseed = () => {
     seedForecast({
       ...forecast,
-      startingMRR: derivedFromPricing.startingMRR,
-      monthlyNewBookings: derivedFromPricing.monthlyNewBookings,
+      startingMRR: seedMRR,
+      monthlyNewBookings: seedBookings,
     });
+    setForecastOverrides({ startingMRRLocked: false, newBookingsLocked: false });
     clearForecastEditedFlag();
     setBannerDismissed(false);
+  };
+
+  const overrideMRR = () => {
+    // Switch to manual: keep the current derived value as the starting point.
+    seedForecast({ ...forecast, startingMRR: seedMRR });
+    setForecastOverrides({ ...forecastOverrides, startingMRRLocked: true });
+  };
+  const resyncMRR = () => {
+    seedForecast({ ...forecast, startingMRR: seedMRR });
+    setForecastOverrides({ ...forecastOverrides, startingMRRLocked: false });
+  };
+  const overrideBookings = () => {
+    seedForecast({ ...forecast, monthlyNewBookings: seedBookings });
+    setForecastOverrides({ ...forecastOverrides, newBookingsLocked: true });
+  };
+  const resyncBookings = () => {
+    seedForecast({ ...forecast, monthlyNewBookings: seedBookings });
+    setForecastOverrides({ ...forecastOverrides, newBookingsLocked: false });
   };
 
   const { bull, base, bear } = useMemo(() => ({
@@ -101,8 +129,33 @@ export default function CourseRevenue() {
         <section className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 lg:sticky lg:top-32 self-start">
           <h2 className="text-[14px] font-semibold text-[#111827] mb-1">Inputs</h2>
           <p className="text-[11px] text-[#9CA3AF] mb-2">Edit any value — charts update live.</p>
-          <AssumptionRow label="Starting MRR" value={forecast.startingMRR} format={fmtUsd} onChange={(v) => setForecast({ ...forecast, startingMRR: v })} />
-          <AssumptionRow label="Monthly new bookings" value={forecast.monthlyNewBookings} format={fmtUsd} onChange={(v) => setForecast({ ...forecast, monthlyNewBookings: v })} />
+
+          {/* Starting MRR — auto-derived unless overridden */}
+          {forecastOverrides.startingMRRLocked ? (
+            <>
+              <AssumptionRow label="Starting MRR" value={forecast.startingMRR} format={fmtUsd} onChange={(v) => setForecast({ ...forecast, startingMRR: v })} />
+              <LockToggle locked onClick={resyncMRR} label="Manual override" actionLabel="Re-sync to pricing" />
+            </>
+          ) : (
+            <>
+              <AssumptionRow label="Starting MRR" value={forecast.startingMRR} format={fmtUsd} derived />
+              <LockToggle locked={false} onClick={overrideMRR} label="Auto from pricing" actionLabel="Override" />
+            </>
+          )}
+
+          {/* Monthly new bookings — auto-derived unless overridden */}
+          {forecastOverrides.newBookingsLocked ? (
+            <>
+              <AssumptionRow label="Monthly new bookings" value={forecast.monthlyNewBookings} format={fmtUsd} onChange={(v) => setForecast({ ...forecast, monthlyNewBookings: v })} />
+              <LockToggle locked onClick={resyncBookings} label="Manual override" actionLabel="Re-sync to pricing" />
+            </>
+          ) : (
+            <>
+              <AssumptionRow label="Monthly new bookings" value={forecast.monthlyNewBookings} format={fmtUsd} derived />
+              <LockToggle locked={false} onClick={overrideBookings} label="Auto from pricing" actionLabel="Override" />
+            </>
+          )}
+
           <AssumptionRow label="Growth rate" value={forecast.monthlyGrowthRate} format={fmtPct(1)} onChange={(v) => setForecast({ ...forecast, monthlyGrowthRate: v })} />
           <AssumptionRow label="Gross churn" value={forecast.monthlyGrossChurnRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyGrossChurnRate: v })} />
           <AssumptionRow label="Downgrades" value={forecast.monthlyDowngradeRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyDowngradeRate: v })} />
@@ -116,7 +169,7 @@ export default function CourseRevenue() {
             <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
               <Sparkles size={16} className="text-primary mt-0.5 shrink-0" />
               <div className="flex-1 text-[13px] text-foreground">
-                <strong>Seeded from your pricing:</strong> {fmtUsd(derivedFromPricing.startingMRR)} MRR across {tierCount} tier{tierCount === 1 ? "" : "s"}. Edit below if your actuals differ.
+                <strong>Auto-derived from your pricing:</strong> {fmtUsd(seedMRR)} MRR across {tierCount} tier{tierCount === 1 ? "" : "s"}. Click Override on any field to type a different value.
               </div>
               <button onClick={() => setBannerDismissed(true)} aria-label="Dismiss" className="text-muted-foreground hover:text-foreground">
                 <X size={14} />
@@ -127,9 +180,9 @@ export default function CourseRevenue() {
             <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
               <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
               <div className="flex-1 text-[13px] text-amber-900">
-                Your pricing now implies <strong>{fmtUsd(derivedFromPricing.startingMRR)} MRR</strong> but you're using <strong>{fmtUsd(forecast.startingMRR)}</strong>.
+                Your pricing now implies <strong>{fmtUsd(seedMRR)} MRR</strong> but you're using <strong>{fmtUsd(forecast.startingMRR)}</strong>.
                 <div className="mt-2 flex gap-2">
-                  <Button size="sm" variant="outline" className="h-7 text-[12px]" onClick={reseed}>Re-seed from pricing</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-[12px]" onClick={reseed}>Re-sync from pricing</Button>
                   <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => setBannerDismissed(true)}>Keep my numbers</Button>
                 </div>
               </div>
@@ -145,5 +198,25 @@ export default function CourseRevenue() {
         </div>
       </div>
     </CourseLayout>
+  );
+}
+
+function LockToggle({
+  locked, onClick, label, actionLabel,
+}: { locked: boolean; onClick: () => void; label: string; actionLabel: string }) {
+  const Icon = locked ? Unlock : Lock;
+  return (
+    <div className="flex items-center justify-between gap-2 -mt-1 mb-1.5 pb-2 border-b border-[#F3F4F6]">
+      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <Icon size={10} /> {label}
+      </span>
+      <button
+        type="button"
+        onClick={onClick}
+        className="text-[10px] uppercase tracking-wide font-semibold text-primary hover:underline"
+      >
+        {actionLabel}
+      </button>
+    </div>
   );
 }

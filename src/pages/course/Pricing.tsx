@@ -15,7 +15,9 @@ import {
   PricingModel,
   PricingTier,
   blankPricingStrategy,
-  deriveRevenueFromPricing,
+  blendedARPU,
+  derivedStartingMRR,
+  derivedMonthlyNewBookings,
 } from "@/lib/pricingStrategy";
 import { useAssumptions } from "@/lib/assumptions";
 
@@ -85,7 +87,8 @@ export default function CoursePricing() {
   const prev = () => setStep((n) => Math.max(n - 1, 0));
 
   const seedFromPricing = () => {
-    const { startingMRR, monthlyNewBookings } = deriveRevenueFromPricing(s);
+    const startingMRR = derivedStartingMRR(s);
+    const monthlyNewBookings = derivedMonthlyNewBookings(s);
     if (startingMRR > 0 || monthlyNewBookings > 0) {
       seedForecast({ ...assumptions.forecast, startingMRR, monthlyNewBookings });
       clearForecastEditedFlag();
@@ -323,12 +326,22 @@ function TiersStep({ s, updateTier }: { s: PricingStrategy; updateTier: (i: 0|1|
 function PricesStep({
   s, updateTier, update,
 }: { s: PricingStrategy; updateTier: (i: 0|1|2, p: Partial<PricingTier>) => void; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
-  const derived = useMemo(() => deriveRevenueFromPricing(s), [s]);
   const intToStr = (n: number) => (n === 0 ? "" : String(n));
+  const numToStr = (n: number) => (n === 0 ? "" : String(n));
   const parseInt0 = (raw: string) => {
     const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
+  const parseFloat0 = (raw: string) => {
+    const n = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+
+  const totalMix = s.tiers.reduce((sum, t) => sum + (t.targetMix || 0), 0);
+  const mixOff = Math.abs(totalMix - 100) > 0.01 && totalMix > 0;
+  const arpu = blendedARPU(s);
+  const startMRR = derivedStartingMRR(s);
+  const newBookings = derivedMonthlyNewBookings(s);
 
   return (
     <div className="space-y-5">
@@ -338,38 +351,38 @@ function PricesStep({
         £9/mo says "commodity tool." £900/mo says "serious partner." Always lead with your highest tier publicly to anchor effectively.
       </Hint>
       <p className="text-xs text-muted-foreground">
-        The last two columns seed your revenue forecast on the next step. Leave at 0 for tiers you haven't launched yet, or for custom/enterprise tiers you price manually.
+        The numeric price and target mix feed your revenue forecast. Use the display field for anything ("$29", "Custom") and the numeric field for the math.
       </p>
       <div className="rounded-lg border border-border overflow-x-auto">
-        <div className="min-w-[720px]">
-          <div className="grid grid-cols-[1.1fr_0.9fr_0.9fr_1fr_1fr] bg-muted text-[11px] font-semibold uppercase tracking-wider">
+        <div className="min-w-[820px]">
+          <div className="grid grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr] bg-muted text-[11px] font-semibold uppercase tracking-wider">
             <div className="p-3">Tier</div>
-            <div className="p-3">Monthly</div>
+            <div className="p-3">Monthly (display)</div>
+            <div className="p-3">As a number</div>
             <div className="p-3">Annual (per mo)</div>
-            <div className="p-3">Customers today</div>
-            <div className="p-3">New / month</div>
+            <div className="p-3">Target mix %</div>
           </div>
           {s.tiers.map((t, i) => (
-            <div key={i} className="grid grid-cols-[1.1fr_0.9fr_0.9fr_1fr_1fr] border-t border-border items-center">
+            <div key={i} className="grid grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr] border-t border-border items-center">
               <div className="p-3 font-semibold">{t.name || `Tier ${i + 1}`}</div>
               <div className="p-3">
                 <Input value={t.monthlyPrice} onChange={(e) => updateTier(i as 0|1|2, { monthlyPrice: e.target.value })}
                   placeholder="$29 or Custom" />
               </div>
               <div className="p-3">
+                <Input type="number" min={0} step={1} inputMode="decimal"
+                  value={numToStr(t.monthlyPriceNum)}
+                  onChange={(e) => updateTier(i as 0|1|2, { monthlyPriceNum: parseFloat0(e.target.value) })}
+                  placeholder="29" />
+              </div>
+              <div className="p-3">
                 <Input value={t.annualPrice} onChange={(e) => updateTier(i as 0|1|2, { annualPrice: e.target.value })}
                   placeholder="$24" />
               </div>
               <div className="p-3">
-                <Input type="number" min={0} step={1} inputMode="numeric"
-                  value={intToStr(t.customersMonth0)}
-                  onChange={(e) => updateTier(i as 0|1|2, { customersMonth0: parseInt0(e.target.value) })}
-                  placeholder="0" />
-              </div>
-              <div className="p-3">
-                <Input type="number" min={0} step={1} inputMode="numeric"
-                  value={intToStr(t.newCustomersPerMonth)}
-                  onChange={(e) => updateTier(i as 0|1|2, { newCustomersPerMonth: parseInt0(e.target.value) })}
+                <Input type="number" min={0} max={100} step={1} inputMode="numeric"
+                  value={numToStr(t.targetMix)}
+                  onChange={(e) => updateTier(i as 0|1|2, { targetMix: parseFloat0(e.target.value) })}
                   placeholder="0" />
               </div>
             </div>
@@ -377,42 +390,37 @@ function PricesStep({
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-        {derived.startingMRR > 0 || derived.monthlyNewBookings > 0 ? (
-          <>
-            <p className="text-sm">
-              Your forecast starts at <strong>{fmtUsd0(derived.startingMRR)} MRR</strong>, growing by{" "}
-              <strong>{fmtUsd0(derived.monthlyNewBookings)} / month</strong> in new bookings.
-            </p>
-            <table className="w-full text-xs">
-              <thead className="text-muted-foreground">
-                <tr className="text-left">
-                  <th className="py-1 font-medium">Tier</th>
-                  <th className="py-1 font-medium text-right">Price</th>
-                  <th className="py-1 font-medium text-right">Customers</th>
-                  <th className="py-1 font-medium text-right">MRR</th>
-                  <th className="py-1 font-medium text-right">New / mo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {derived.perTier.map((t, i) => (
-                  <tr key={i} className="border-t border-border/50">
-                    <td className="py-1.5">{t.name}</td>
-                    <td className="py-1.5 text-right">{t.monthlyPrice ? fmtUsd0(t.monthlyPrice) : "—"}</td>
-                    <td className="py-1.5 text-right">{t.customersMonth0}</td>
-                    <td className="py-1.5 text-right font-medium">{fmtUsd0(t.mrrContribution)}</td>
-                    <td className="py-1.5 text-right">{fmtUsd0(t.bookingsContribution)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="text-[11px] text-muted-foreground italic">
-              You can override these numbers on the next step if your actuals differ.
-            </p>
-          </>
+      {mixOff && (
+        <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          Target mix sums to {totalMix}% — should add up to 100% for an accurate blended ARPU.
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Current customers (today)" hint="Total paying customers across all tiers right now.">
+          <Input type="number" min={0} step={1} inputMode="numeric"
+            value={intToStr(s.currentCustomers)}
+            onChange={(e) => update("currentCustomers", parseInt0(e.target.value))}
+            placeholder="0" />
+        </Field>
+        <Field label="New customers per month" hint="Net new logos you expect to add monthly.">
+          <Input type="number" min={0} step={1} inputMode="numeric"
+            value={intToStr(s.targetNewCustomersPerMonth)}
+            onChange={(e) => update("targetNewCustomersPerMonth", parseInt0(e.target.value))}
+            placeholder="0" />
+        </Field>
+      </div>
+
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        {arpu > 0 ? (
+          <p className="text-sm">
+            Blended ARPU: <strong>{fmtUsd0(arpu)}</strong> · implies starting MRR of{" "}
+            <strong>{fmtUsd0(startMRR)}</strong> and new bookings of{" "}
+            <strong>{fmtUsd0(newBookings)} / month</strong>.
+          </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Add customers and prices above to seed your forecast.
+            Add numeric prices, target mix, and customer counts above to see your blended ARPU and forecast seed.
           </p>
         )}
       </div>

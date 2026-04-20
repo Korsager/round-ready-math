@@ -27,11 +27,17 @@ export interface CashflowAssumptions {
   grossMargin: number;
 }
 
+export interface ForecastOverrides {
+  startingMRRLocked: boolean;
+  newBookingsLocked: boolean;
+}
+
 export interface Assumptions {
   fundraise: FundraiseAssumptions;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
   pricing: PricingStrategy;
+  forecastOverrides: ForecastOverrides;
   forecastManuallyEdited: boolean;
 }
 
@@ -45,11 +51,17 @@ export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
   valuationMethod: "auto",
 };
 
+export const DEFAULT_FORECAST_OVERRIDES: ForecastOverrides = {
+  startingMRRLocked: false,
+  newBookingsLocked: false,
+};
+
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
   pricing: blankPricingStrategy(),
+  forecastOverrides: DEFAULT_FORECAST_OVERRIDES,
   forecastManuallyEdited: false,
 };
 
@@ -79,6 +91,7 @@ function load(): Assumptions {
       const base: Assumptions = {
         ...DEFAULT_ASSUMPTIONS,
         pricing: legacyPricing ?? blankPricingStrategy(),
+        forecastOverrides: { ...DEFAULT_FORECAST_OVERRIDES },
       };
       if (legacyPricing) {
         try { localStorage.removeItem(LEGACY_PRICING_STORAGE_KEY); } catch { /* ignore */ }
@@ -106,6 +119,7 @@ function load(): Assumptions {
       forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
       cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
       pricing,
+      forecastOverrides: { ...DEFAULT_FORECAST_OVERRIDES, ...(parsed.forecastOverrides ?? {}) },
       forecastManuallyEdited: !!parsed.forecastManuallyEdited,
     };
   } catch {
@@ -155,6 +169,10 @@ export function useAssumptions() {
     const next = typeof p === "function" ? (p as (prev: PricingStrategy) => PricingStrategy)(current.pricing) : p;
     save({ ...current, pricing: next });
   }, []);
+  const setForecastOverrides = useCallback((o: ForecastOverrides | ((prev: ForecastOverrides) => ForecastOverrides)) => {
+    const next = typeof o === "function" ? (o as (prev: ForecastOverrides) => ForecastOverrides)(current.forecastOverrides) : o;
+    save({ ...current, forecastOverrides: next });
+  }, []);
   const reset = useCallback(() => save(DEFAULT_ASSUMPTIONS), []);
 
   return {
@@ -165,6 +183,7 @@ export function useAssumptions() {
     setCashflow,
     setFundraise,
     setPricing,
+    setForecastOverrides,
     reset,
   };
 }

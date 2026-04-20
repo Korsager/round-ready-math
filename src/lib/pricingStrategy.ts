@@ -8,10 +8,12 @@ export interface PricingTier {
   name: string;
   job: string;
   features: string;
-  monthlyPrice: string;
+  monthlyPrice: string;       // free-form display ("$29", "Custom", etc.)
+  monthlyPriceNum: number;    // numeric companion used for blended-ARPU math
   annualPrice: string;
   customersMonth0: number;
   newCustomersPerMonth: number;
+  targetMix: number;          // 0–100 share of new customers landing in this tier
 }
 
 export interface PricingContext {
@@ -30,6 +32,9 @@ export interface PricingStrategy {
   anchoringNotes: string;
   upgradeTriggers: string;
   checklist: Record<string, boolean>;
+  // Strategy-level customer counts (used with blended ARPU to derive forecast).
+  currentCustomers: number;
+  targetNewCustomersPerMonth: number;
 }
 
 // Legacy localStorage key — kept exported ONLY so the assumptions store can
@@ -41,9 +46,11 @@ const blankTier = (overrides: Partial<PricingTier>): PricingTier => ({
   job: "",
   features: "",
   monthlyPrice: "",
+  monthlyPriceNum: 0,
   annualPrice: "",
   customersMonth0: 0,
   newCustomersPerMonth: 0,
+  targetMix: 0,
   ...overrides,
 });
 
@@ -53,22 +60,26 @@ export const blankPricingStrategy = (): PricingStrategy => ({
   models: [],
   modelNotes: "",
   tiers: [
-    blankTier({ name: "Starter", job: "Make Pro look like the obvious choice" }),
-    blankTier({ name: "Pro", job: "Where 60–70% of customers should land" }),
-    blankTier({ name: "Enterprise", job: "Anchor the high end. Custom — talk to us.", monthlyPrice: "Custom", annualPrice: "Custom" }),
+    blankTier({ name: "Starter", job: "Make Pro look like the obvious choice", targetMix: 20 }),
+    blankTier({ name: "Pro", job: "Where 60–70% of customers should land", targetMix: 60 }),
+    blankTier({ name: "Enterprise", job: "Anchor the high end. Custom — talk to us.", monthlyPrice: "Custom", annualPrice: "Custom", targetMix: 20 }),
   ],
   annualDiscountPct: "",
   anchoringNotes: "",
   upgradeTriggers: "",
   checklist: {},
+  currentCustomers: 0,
+  targetNewCustomersPerMonth: 0,
 });
 
 function mergeTier(base: PricingTier, raw: Partial<PricingTier> | undefined): PricingTier {
   const t = { ...base, ...(raw ?? {}) };
   return {
     ...t,
+    monthlyPriceNum: Number.isFinite(t.monthlyPriceNum) ? Number(t.monthlyPriceNum) : 0,
     customersMonth0: Number.isFinite(t.customersMonth0) ? Number(t.customersMonth0) : 0,
     newCustomersPerMonth: Number.isFinite(t.newCustomersPerMonth) ? Number(t.newCustomersPerMonth) : 0,
+    targetMix: Number.isFinite(t.targetMix) ? Number(t.targetMix) : 0,
   };
 }
 
@@ -78,7 +89,13 @@ export function mergePricingStrategy(parsed: any): PricingStrategy {
   if (!parsed || typeof parsed !== "object") return blankPricingStrategy();
   const base = blankPricingStrategy();
   const tiers = base.tiers.map((bt, i) => mergeTier(bt, parsed?.tiers?.[i])) as [PricingTier, PricingTier, PricingTier];
-  return { ...base, ...parsed, tiers };
+  return {
+    ...base,
+    ...parsed,
+    tiers,
+    currentCustomers: Number.isFinite(parsed?.currentCustomers) ? Number(parsed.currentCustomers) : 0,
+    targetNewCustomersPerMonth: Number.isFinite(parsed?.targetNewCustomersPerMonth) ? Number(parsed.targetNewCustomersPerMonth) : 0,
+  };
 }
 
 // Returns the numeric monthly price in dollars, or 0 if unparseable / "Custom" / etc.
@@ -123,4 +140,26 @@ export function deriveRevenueFromPricing(s: PricingStrategy): {
 
 export function tieredCount(s: PricingStrategy): number {
   return deriveRevenueFromPricing(s).perTier.filter((t) => t.mrrContribution > 0).length;
+}
+
+// Blended ARPU = Σ (price_i × mix_i / totalMix). Returns 0 if no usable inputs.
+export function blendedARPU(pricing: PricingStrategy): number {
+  const totalMix = pricing.tiers.reduce((sum, t) => sum + (t.targetMix || 0), 0);
+  if (totalMix <= 0) return 0;
+  let weighted = 0;
+  let pricedAny = false;
+  for (const t of pricing.tiers) {
+    const price = t.monthlyPriceNum || 0;
+    if (price > 0) pricedAny = true;
+    weighted += price * ((t.targetMix || 0) / totalMix);
+  }
+  return pricedAny ? weighted : 0;
+}
+
+export function derivedStartingMRR(pricing: PricingStrategy): number {
+  return blendedARPU(pricing) * (pricing.currentCustomers || 0);
+}
+
+export function derivedMonthlyNewBookings(pricing: PricingStrategy): number {
+  return blendedARPU(pricing) * (pricing.targetNewCustomersPerMonth || 0);
 }
