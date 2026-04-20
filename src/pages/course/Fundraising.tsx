@@ -107,6 +107,13 @@ export default function CourseFundraising() {
             format={fmtPct(0)}
             onChange={(v) => setFundraise({ ...f, targetIrr: v })}
           />
+          <AssumptionRow
+            label="Months until close"
+            description="When the round closes and cash arrives. Drives whether the raise lands before runway zero."
+            value={assumptions.cashflow.monthsUntilRaise}
+            format={fmtNum(" mo")}
+            onChange={(v) => setCashflow({ ...assumptions.cashflow, monthsUntilRaise: Math.max(0, v) })}
+          />
           <AssumptionRow label="Years to exit" value={f.yearsToExit} format={fmtNum(" yr")} onChange={(v) => setFundraise({ ...f, yearsToExit: v })} />
           <AssumptionRow label="Target MOIC" value={f.targetMoic} format={fmtMoic} onChange={(v) => setFundraise({ ...f, targetMoic: v })} />
 
