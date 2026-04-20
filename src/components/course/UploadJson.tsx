@@ -5,7 +5,7 @@ import { useAssumptions, type Assumptions } from "@/lib/assumptions";
 import { DEFAULT_INPUTS } from "@/lib/presets";
 import { DEFAULT_CASHFLOW } from "@/lib/cashflow";
 import { DEFAULT_FUNDRAISE } from "@/lib/assumptions";
-import { savePricingStrategy, blankPricingStrategy } from "@/lib/pricingStrategy";
+import { blankPricingStrategy, mergePricingStrategy } from "@/lib/pricingStrategy";
 
 function mergeAssumptions(parsed: any): Assumptions {
   // Strip legacy cashflow.fundraiseAmount — raise lives on fundraise slice.
@@ -14,34 +14,20 @@ function mergeAssumptions(parsed: any): Assumptions {
     fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
     cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
+    pricing: parsed?.pricing ? mergePricingStrategy(parsed.pricing) : blankPricingStrategy(),
     forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
   };
-}
-
-function mergePricing(parsed: any) {
-  const base = blankPricingStrategy();
-  if (!parsed) return base;
-  const tiers = base.tiers.map((bt, i) => {
-    const raw = parsed?.tiers?.[i] ?? {};
-    return {
-      ...bt,
-      ...raw,
-      customersMonth0: Number.isFinite(raw.customersMonth0) ? Number(raw.customersMonth0) : 0,
-      newCustomersPerMonth: Number.isFinite(raw.newCustomersPerMonth) ? Number(raw.newCustomersPerMonth) : 0,
-    };
-  }) as typeof base.tiers;
-  return { ...base, ...parsed, tiers };
 }
 
 export default function UploadJson() {
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { setForecast, setCashflow, setFundraise, reset } = useAssumptions();
+  const { setForecast, setCashflow, setFundraise, setPricing, reset } = useAssumptions();
   const [error, setError] = useState<string | null>(null);
 
   const startFresh = () => {
     reset();
-    savePricingStrategy(blankPricingStrategy());
+    setPricing(blankPricingStrategy());
     navigate("/course/pricing");
   };
 
@@ -54,9 +40,7 @@ export default function UploadJson() {
       setFundraise(merged.fundraise);
       setForecast(merged.forecast);
       setCashflow(merged.cashflow);
-      if (parsed?.pricing) {
-        savePricingStrategy(mergePricing(parsed.pricing));
-      }
+      setPricing(merged.pricing);
       navigate("/course/pricing");
     } catch (e) {
       setError("Could not read that file. Make sure it's a valid plan JSON exported from this tool.");

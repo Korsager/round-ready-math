@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
-import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
+import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
@@ -14,7 +14,8 @@ export interface ExportCharts {
 }
 
 export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
-  const pricing = pricingArg ?? loadPricingStrategy();
+  // Pricing lives on the assumptions store; fall back to blank if not provided.
+  const pricing = pricingArg ?? a.pricing ?? blankPricingStrategy();
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = doc.internal.pageSize.getWidth();
   const M = 56;

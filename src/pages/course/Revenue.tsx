@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
 import { DEFAULT_INPUTS } from "@/lib/presets";
-import { deriveRevenueFromPricing, loadPricingStrategy } from "@/lib/pricingStrategy";
+import { deriveRevenueFromPricing } from "@/lib/pricingStrategy";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -20,10 +20,9 @@ const fmtNum = (suffix = "") => (v: number) => `${v.toLocaleString("en-US")}${su
 
 export default function CourseRevenue() {
   const { assumptions, setForecast, seedForecast, clearForecastEditedFlag } = useAssumptions();
-  const { forecast, forecastManuallyEdited } = assumptions;
+  const { forecast, forecastManuallyEdited, pricing } = assumptions;
 
-  // Recompute pricing-derived numbers on every render (cheap; reads localStorage once).
-  const [pricing] = useState(() => loadPricingStrategy());
+  // Pricing now lives in the unified assumptions store — derive live.
   const derivedFromPricing = useMemo(() => deriveRevenueFromPricing(pricing), [pricing]);
   const tierCount = derivedFromPricing.perTier.filter((t) => t.mrrContribution > 0).length;
 

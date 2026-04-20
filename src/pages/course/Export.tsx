@@ -6,7 +6,6 @@ import CourseLayout from "@/components/course/CourseLayout";
 import { useAssumptions } from "@/lib/assumptions";
 import { exportPdf } from "@/lib/exportPdf";
 import { exportPptx } from "@/lib/exportPptx";
-import { loadPricingStrategy } from "@/lib/pricingStrategy";
 import { runScenario } from "@/lib/forecast";
 import { simulateCashflow } from "@/lib/cashflow";
 import ForecastChart from "@/components/forecast/ForecastChart";
@@ -40,7 +39,8 @@ export default function CourseExport() {
   };
 
   const downloadJson = () => {
-    const payload = { ...assumptions, pricing: loadPricingStrategy() };
+    // assumptions already includes pricing under the unified store.
+    const payload = { ...assumptions };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -55,7 +55,7 @@ export default function CourseExport() {
     setBusy("pdf");
     try {
       const charts = await captureCharts();
-      await exportPdf(assumptions, loadPricingStrategy(), charts);
+      await exportPdf(assumptions, assumptions.pricing, charts);
       mark("pdf");
     } finally { setBusy(null); }
   };
@@ -64,7 +64,7 @@ export default function CourseExport() {
     setBusy("pptx");
     try {
       const charts = await captureCharts();
-      await exportPptx(assumptions, loadPricingStrategy(), charts);
+      await exportPptx(assumptions, assumptions.pricing, charts);
       mark("pptx");
     } finally { setBusy(null); }
   };

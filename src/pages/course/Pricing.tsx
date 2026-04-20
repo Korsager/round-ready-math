@@ -15,8 +15,6 @@ import {
   PricingModel,
   PricingTier,
   blankPricingStrategy,
-  loadPricingStrategy,
-  savePricingStrategy,
   deriveRevenueFromPricing,
 } from "@/lib/pricingStrategy";
 import { useAssumptions } from "@/lib/assumptions";
@@ -51,16 +49,20 @@ const MODELS: { id: PricingModel; desc: string }[] = [
 
 export default function CoursePricing() {
   const [step, setStep] = useState(0);
+  const { assumptions, seedForecast, clearForecastEditedFlag, setPricing } = useAssumptions();
+
+  // Local working copy mirrors the store; seeded from assumptions.pricing on
+  // first mount and ensures the checklist always carries every item.
   const [s, setS] = useState<PricingStrategy>(() => {
-    const loaded = loadPricingStrategy();
-    // Ensure checklist has all items
+    const loaded = assumptions.pricing;
     const checklist = { ...Object.fromEntries(CHECKLIST_ITEMS.map((i) => [i, false])), ...loaded.checklist };
     return { ...loaded, checklist };
   });
 
+  // Persist to the unified store on every change.
   useEffect(() => {
-    savePricingStrategy(s);
-  }, [s]);
+    setPricing(s);
+  }, [s, setPricing]);
 
   const update = <K extends keyof PricingStrategy>(key: K, value: PricingStrategy[K]) =>
     setS((prev) => ({ ...prev, [key]: value }));
@@ -81,8 +83,6 @@ export default function CoursePricing() {
   };
 
   const prev = () => setStep((n) => Math.max(n - 1, 0));
-
-  const { assumptions, seedForecast, clearForecastEditedFlag } = useAssumptions();
 
   const seedFromPricing = () => {
     const { startingMRR, monthlyNewBookings } = deriveRevenueFromPricing(s);
