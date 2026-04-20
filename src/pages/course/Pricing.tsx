@@ -87,7 +87,8 @@ export default function CoursePricing() {
   const prev = () => setStep((n) => Math.max(n - 1, 0));
 
   const seedFromPricing = () => {
-    const { startingMRR, monthlyNewBookings } = deriveRevenueFromPricing(s);
+    const startingMRR = derivedStartingMRR(s);
+    const monthlyNewBookings = derivedMonthlyNewBookings(s);
     if (startingMRR > 0 || monthlyNewBookings > 0) {
       seedForecast({ ...assumptions.forecast, startingMRR, monthlyNewBookings });
       clearForecastEditedFlag();
