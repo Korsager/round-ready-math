@@ -183,6 +183,7 @@ export function useAssumptions() {
     setCashflow,
     setFundraise,
     setPricing,
+    setForecastOverrides,
     reset,
   };
 }

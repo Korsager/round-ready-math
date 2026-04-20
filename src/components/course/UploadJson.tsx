@@ -15,6 +15,10 @@ function mergeAssumptions(parsed: any): Assumptions {
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
     cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
     pricing: parsed?.pricing ? mergePricingStrategy(parsed.pricing) : blankPricingStrategy(),
+    forecastOverrides: {
+      startingMRRLocked: !!parsed?.forecastOverrides?.startingMRRLocked,
+      newBookingsLocked: !!parsed?.forecastOverrides?.newBookingsLocked,
+    },
     forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
   };
 }
