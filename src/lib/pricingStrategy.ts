@@ -1,5 +1,6 @@
-// Shared accessor for the pricing strategy stored by PricingPlaybook.
-// Keeps the storage key in one place so exports (JSON/PDF/PPTX) can read it.
+// Pricing strategy types & helpers.
+// Persistence now lives in src/lib/assumptions.ts (single store). Callers should
+// read/write pricing via useAssumptions() rather than calling load/save here.
 
 export type PricingModel = "Tiered" | "Usage-based" | "Freemium" | "Free Trial" | "Hybrid";
 
@@ -31,7 +32,9 @@ export interface PricingStrategy {
   checklist: Record<string, boolean>;
 }
 
-export const PRICING_STORAGE_KEY = "founders-corner-pricing-strategy-v1";
+// Legacy localStorage key — kept exported ONLY so the assumptions store can
+// migrate it on first load. Do not use in new code.
+export const LEGACY_PRICING_STORAGE_KEY = "founders-corner-pricing-strategy-v1";
 
 const blankTier = (overrides: Partial<PricingTier>): PricingTier => ({
   name: "",
@@ -69,22 +72,13 @@ function mergeTier(base: PricingTier, raw: Partial<PricingTier> | undefined): Pr
   };
 }
 
-export function loadPricingStrategy(): PricingStrategy {
-  if (typeof window === "undefined") return blankPricingStrategy();
-  try {
-    const raw = localStorage.getItem(PRICING_STORAGE_KEY);
-    if (!raw) return blankPricingStrategy();
-    const parsed = JSON.parse(raw);
-    const base = blankPricingStrategy();
-    const tiers = base.tiers.map((bt, i) => mergeTier(bt, parsed?.tiers?.[i])) as [PricingTier, PricingTier, PricingTier];
-    return { ...base, ...parsed, tiers };
-  } catch {
-    return blankPricingStrategy();
-  }
-}
-
-export function savePricingStrategy(s: PricingStrategy) {
-  try { localStorage.setItem(PRICING_STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+// Merge a parsed/partial pricing object onto a blank baseline. Used by the
+// assumptions store loader and the UploadJson importer.
+export function mergePricingStrategy(parsed: any): PricingStrategy {
+  if (!parsed || typeof parsed !== "object") return blankPricingStrategy();
+  const base = blankPricingStrategy();
+  const tiers = base.tiers.map((bt, i) => mergeTier(bt, parsed?.tiers?.[i])) as [PricingTier, PricingTier, PricingTier];
+  return { ...base, ...parsed, tiers };
 }
 
 // Returns the numeric monthly price in dollars, or 0 if unparseable / "Custom" / etc.
