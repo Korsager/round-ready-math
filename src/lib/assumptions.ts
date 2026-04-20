@@ -27,11 +27,17 @@ export interface CashflowAssumptions {
   grossMargin: number;
 }
 
+export interface ForecastOverrides {
+  startingMRRLocked: boolean;
+  newBookingsLocked: boolean;
+}
+
 export interface Assumptions {
   fundraise: FundraiseAssumptions;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
   pricing: PricingStrategy;
+  forecastOverrides: ForecastOverrides;
   forecastManuallyEdited: boolean;
 }
 
@@ -45,11 +51,17 @@ export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
   valuationMethod: "auto",
 };
 
+export const DEFAULT_FORECAST_OVERRIDES: ForecastOverrides = {
+  startingMRRLocked: false,
+  newBookingsLocked: false,
+};
+
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
   pricing: blankPricingStrategy(),
+  forecastOverrides: DEFAULT_FORECAST_OVERRIDES,
   forecastManuallyEdited: false,
 };
 

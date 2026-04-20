@@ -141,3 +141,25 @@ export function deriveRevenueFromPricing(s: PricingStrategy): {
 export function tieredCount(s: PricingStrategy): number {
   return deriveRevenueFromPricing(s).perTier.filter((t) => t.mrrContribution > 0).length;
 }
+
+// Blended ARPU = Σ (price_i × mix_i / totalMix). Returns 0 if no usable inputs.
+export function blendedARPU(pricing: PricingStrategy): number {
+  const totalMix = pricing.tiers.reduce((sum, t) => sum + (t.targetMix || 0), 0);
+  if (totalMix <= 0) return 0;
+  let weighted = 0;
+  let pricedAny = false;
+  for (const t of pricing.tiers) {
+    const price = t.monthlyPriceNum || 0;
+    if (price > 0) pricedAny = true;
+    weighted += price * ((t.targetMix || 0) / totalMix);
+  }
+  return pricedAny ? weighted : 0;
+}
+
+export function derivedStartingMRR(pricing: PricingStrategy): number {
+  return blendedARPU(pricing) * (pricing.currentCustomers || 0);
+}
+
+export function derivedMonthlyNewBookings(pricing: PricingStrategy): number {
+  return blendedARPU(pricing) * (pricing.targetNewCustomersPerMonth || 0);
+}
