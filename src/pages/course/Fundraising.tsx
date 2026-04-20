@@ -217,7 +217,7 @@ export default function CourseFundraising() {
             </details>
           </div>
 
-          <RunwayCheck plan={plan} state={runwayState} raise={f.raise} horizonMonths={plan.horizonMonths} />
+          <RunwayCheck plan={plan} state={runwayState} raise={f.raise} horizonMonths={plan.horizonMonths} planStartDate={assumptions.planStartDate} />
 
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <h3 className="text-[13px] font-semibold text-[#111827] mb-2">IRR sensitivity</h3>
@@ -234,14 +234,17 @@ function RunwayCheck({
   state,
   raise,
   horizonMonths,
+  planStartDate,
 }: {
   plan: ReturnType<typeof computePlanSummary>;
   state: "red" | "amber" | "green";
   raise: number;
   horizonMonths: number;
+  planStartDate: string;
 }) {
   const runwayLabel = plan.runwayMonth !== null ? `${plan.runwayMonth} mo` : `${horizonMonths}+ mo`;
   const afterLabel = plan.monthsRunwayAfterRaise !== null ? `${plan.monthsRunwayAfterRaise} mo` : "—";
+  const cal = (m: number) => monthCalendar(planStartDate, m);
   const styles = {
     red: { wrap: "bg-red-50 border-red-200", icon: AlertCircle, iconClass: "text-destructive", label: "Funding gap", labelClass: "text-destructive" },
     amber: { wrap: "bg-amber-50 border-amber-200", icon: AlertTriangle, iconClass: "text-amber-600", label: "Tight raise", labelClass: "text-amber-700" },
@@ -254,8 +257,8 @@ function RunwayCheck({
     body = (
       <>
         <p className="text-[13px] text-[#111827] leading-relaxed">
-          You run out of cash in month <strong className="tabular-nums">{plan.runwayMonth}</strong> but the raise isn't planned until month{" "}
-          <strong className="tabular-nums">{plan.monthsUntilRaise}</strong>. Either raise earlier, cut burn, or extend the bridge.
+          You run out of cash in month <strong className="tabular-nums">{plan.runwayMonth}</strong> ({cal(plan.runwayMonth!)}) but the raise isn't planned until month{" "}
+          <strong className="tabular-nums">{plan.monthsUntilRaise}</strong> ({cal(plan.monthsUntilRaise)}). Either raise earlier, cut burn, or extend the bridge.
         </p>
         <Link to="/course/cashflow" className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline mt-2">
           Adjust on Cashflow step <ArrowRight size={12} />
