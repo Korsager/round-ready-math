@@ -32,7 +32,7 @@ export default function CourseCashflow() {
           <h2 className="text-[14px] font-semibold text-[#111827] mb-1">Inputs</h2>
           <p className="text-[11px] text-[#9CA3AF] mb-2">Burn, runway & raise timing.</p>
           <AssumptionRow label="Starting cash" value={c.startingCash} format={fmtUsd} onChange={(v) => setCashflow({ ...c, startingCash: v })} />
-          <AssumptionRow label="Fundraise amount" value={c.fundraiseAmount} format={fmtUsd} onChange={(v) => setCashflow({ ...c, fundraiseAmount: v })} />
+          <AssumptionRow label="Fundraise amount" value={fundraiseAmount} format={fmtUsd} derived description="Set on the Fundraising step" />
           <AssumptionRow label="Months until raise" value={c.monthsUntilRaise} format={fmtNum(" mo")} onChange={(v) => setCashflow({ ...c, monthsUntilRaise: v })} />
           <AssumptionRow label="Starting OpEx" value={c.startingBurn} format={fmtUsd} onChange={(v) => setCashflow({ ...c, startingBurn: v })} />
           <AssumptionRow label="OpEx growth" value={c.opexGrowthRate} format={fmtPct(1)} onChange={(v) => setCashflow({ ...c, opexGrowthRate: v })} />
