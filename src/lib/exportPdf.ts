@@ -5,6 +5,7 @@ import { runScenario } from "./forecast";
 import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary } from "./planSummary";
+import { monthCalendar, planStartLabel } from "./dateAnchor";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -74,12 +75,16 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   };
 
   // Cover
+  const startLabel = planStartLabel(a.planStartDate);
+  const cal = (m: number) => monthCalendar(a.planStartDate, m);
   doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.setTextColor(17, 24, 39);
   doc.text("Fundraise Plan", M, y); y += 32;
   doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(107, 114, 128);
-  doc.text(`Generated ${new Date().toLocaleDateString()}`, M, y); y += 30;
+  doc.text(`Plan start: ${startLabel}`, M, y); y += 16;
+  doc.text(`Generated ${new Date().toLocaleDateString()}`, M, y); y += 24;
 
   para("This report covers your pricing, revenue forecast, fundraising math, and cashflow runway as configured in the Founders Toolkit.");
+  para(`All "month N" references in this report are measured from the plan start month above (${startLabel} = month 0).`);
   y += 10;
 
   // Plan summary
@@ -97,12 +102,12 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
     {
       label: "RUNWAY TODAY",
       value: summary.runwayMonth !== null ? `${summary.runwayMonth} mo` : `${summary.horizonMonths}+ mo`,
-      sub: summary.runwayMonth !== null ? "until cash hits zero" : "through horizon",
+      sub: summary.runwayMonth !== null ? `cash zero ${cal(summary.runwayMonth)}` : "through horizon",
     },
     {
       label: "RAISE BY",
       value: `Month ${summary.monthsUntilRaise}`,
-      sub: summary.bufferBeforeZero !== null ? `${Math.max(0, summary.bufferBeforeZero)} mo buffer` : "comfortable",
+      sub: `${cal(summary.monthsUntilRaise)}${summary.bufferBeforeZero !== null ? ` · ${Math.max(0, summary.bufferBeforeZero)} mo buffer` : ""}`,
     },
     {
       label: "RUNWAY AFTER RAISE",
@@ -243,8 +248,8 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Starting OpEx", `${fmtUsd(a.cashflow.startingBurn)}/mo`);
   row("OpEx growth", `${a.cashflow.opexGrowthRate}%/mo`);
   row("Gross margin", `${a.cashflow.grossMargin}%`);
-  row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise}`);
-  row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth}` : "Beyond 36 months");
+  row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise} (${cal(a.cashflow.monthsUntilRaise)})`);
+  row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth} (${cal(cf.runwayMonth)})` : "Beyond 36 months");
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth}` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
