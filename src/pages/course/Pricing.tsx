@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Check, ChevronLeft, ChevronRight, Target, Layers,
   DollarSign, Zap, ClipboardCheck, Lightbulb, Sparkles, RotateCcw,
@@ -16,7 +17,11 @@ import {
   blankPricingStrategy,
   loadPricingStrategy,
   savePricingStrategy,
+  deriveRevenueFromPricing,
 } from "@/lib/pricingStrategy";
+import { useAssumptions } from "@/lib/assumptions";
+
+const fmtUsd0 = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 
 const CHECKLIST_ITEMS = [
   "We know which features our users value most",
