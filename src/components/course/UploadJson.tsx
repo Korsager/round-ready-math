@@ -18,6 +18,7 @@ function mergeAssumptions(parsed: any): Assumptions {
     forecastOverrides: {
       startingMRRLocked: !!parsed?.forecastOverrides?.startingMRRLocked,
       newBookingsLocked: !!parsed?.forecastOverrides?.newBookingsLocked,
+      grossMarginLocked: !!parsed?.forecastOverrides?.grossMarginLocked,
     },
     forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
   };
