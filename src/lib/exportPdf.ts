@@ -149,7 +149,7 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Starting OpEx", `${fmtUsd(a.cashflow.startingBurn)}/mo`);
   row("OpEx growth", `${a.cashflow.opexGrowthRate}%/mo`);
   row("Gross margin", `${a.cashflow.grossMargin}%`);
-  row("Fundraise inflow", `${fmtM(a.cashflow.fundraiseAmount)} in mo ${a.cashflow.monthsUntilRaise}`);
+  row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise}`);
   row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth}` : "Beyond 36 months");
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth}` : "Not within 36 mo");

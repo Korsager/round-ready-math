@@ -1,12 +1,10 @@
 import { simulate, type ForecastInputs } from "./forecast";
+import type { CashflowAssumptions } from "./assumptions";
 
-export interface CashflowInputs {
-  startingCash: number;
+// Runtime input to simulateCashflow — fundraiseAmount is passed in from
+// assumptions.fundraise.raise rather than stored on the cashflow slice.
+export interface CashflowInputs extends CashflowAssumptions {
   fundraiseAmount: number;
-  monthsUntilRaise: number;
-  startingBurn: number;
-  opexGrowthRate: number; // % per month
-  grossMargin: number; // %
   forecast: ForecastInputs;
 }
 
@@ -99,9 +97,8 @@ export function simulateCashflow(inputs: CashflowInputs, horizon = 36): Cashflow
   };
 }
 
-export const DEFAULT_CASHFLOW: Omit<CashflowInputs, "forecast"> = {
+export const DEFAULT_CASHFLOW: CashflowAssumptions = {
   startingCash: 1_500_000,
-  fundraiseAmount: 2_000_000,
   monthsUntilRaise: 6,
   startingBurn: 180_000,
   opexGrowthRate: 4,

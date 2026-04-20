@@ -8,10 +8,12 @@ import { DEFAULT_FUNDRAISE } from "@/lib/assumptions";
 import { savePricingStrategy, blankPricingStrategy } from "@/lib/pricingStrategy";
 
 function mergeAssumptions(parsed: any): Assumptions {
+  // Strip legacy cashflow.fundraiseAmount — raise lives on fundraise slice.
+  const { fundraiseAmount: _legacy, ...cashflowRest } = parsed?.cashflow ?? {};
   return {
     fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
-    cashflow: { ...DEFAULT_CASHFLOW, ...(parsed?.cashflow ?? {}) },
+    cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
     forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
   };
 }

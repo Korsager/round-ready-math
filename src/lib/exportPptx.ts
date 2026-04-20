@@ -171,7 +171,7 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     { label: "After raise", value: cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo` },
     { label: "Break-even", value: cf.breakEvenMonth ? `Mo ${cf.breakEvenMonth}` : "Not in 36 mo" },
     { label: "Burn multiple", value: isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞" },
-    { label: "Raise size", value: fmtM(a.cashflow.fundraiseAmount) },
+    { label: "Raise size", value: fmtM(a.fundraise.raise) },
     { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise}` },
   ], `Healthy burn multiple is < 2×. Above signals inefficient growth.`);
 
