@@ -58,17 +58,16 @@ export function simulateCashflow(inputs: CashflowInputs, horizon = 36): Cashflow
 
   // Build the master raise schedule. Always include the current round.
   // Manual raises sit alongside (label them clearly upstream).
-  const initialRaises: PlannedRaise[] = [
-    {
-      id: "current",
-      month: inputs.currentRound.month,
-      amount: inputs.currentRound.amount,
-      dilutionPct: inputs.currentRound.dilutionPct,
-      label: "Series A (current)",
-      source: "current",
-    },
-    ...inputs.manualRaises.map((r) => ({ ...r })),
-  ].sort((a, b) => a.month - b.month);
+  const currentRaise: PlannedRaise = {
+    id: "current",
+    month: inputs.currentRound.month,
+    amount: inputs.currentRound.amount,
+    dilutionPct: inputs.currentRound.dilutionPct,
+    label: "Series A (current)",
+    source: "current",
+  };
+  const initialRaises: PlannedRaise[] = [currentRaise, ...inputs.manualRaises.map((r) => ({ ...r }))]
+    .sort((a, b) => a.month - b.month);
 
   const plannedRaises: PlannedRaise[] = [...initialRaises];
   const auto = inputs.autoPlan;
