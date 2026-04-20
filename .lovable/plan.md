@@ -1,67 +1,52 @@
 
-## Plan: Convert the toolkit into a guided course flow
 
-Transform the app from a free-navigation dashboard into a linear, step-by-step course. Users start by choosing to upload an existing plan or start fresh, then walk through Pricing → Revenue Forecast → Fundraising → Cashflow, and finish at an export step (JSON, PDF, PPTX).
+## Goal
+Connect the pricing model to the cost model so gross margin reflects what the founder actually designed, instead of being a free-floating number they type into Cashflow.
 
-### 1. New onboarding step (`src/pages/Start.tsx`)
-- Two big choice cards:
-  - **Upload existing plan** — file input accepting `.json`, parsed and validated against `Assumptions` shape, then merged into the store via `useAssumptions`.
-  - **Start from scratch** — loads `DEFAULT_ASSUMPTIONS`.
-- On either choice → navigate to `/course/pricing`.
-- Invalid JSON shows inline error.
+## Approach
+Add per-tier gross margin to the pricing strategy, derive a blended gross margin (weighted by each tier's revenue contribution), and auto-feed it into the Cashflow gross margin field — with the same lock/unlock pattern already used for Starting MRR and Monthly New Bookings on the Revenue page.
 
-### 2. Course shell (`src/components/course/CourseLayout.tsx`)
-Wraps each step with:
-- Top progress bar (5 steps: Pricing, Revenue, Fundraising, Cashflow, Export) with current step highlighted and completed steps checkmarked.
-- Step title + short "what you'll do here" intro paragraph.
-- Sticky footer with **Back** and **Next** buttons (Next disabled only on the very last "finish" action).
-- Replaces the freeform `NavBar` on course routes (NavBar still exists for `/assumptions` and legacy access via a small "Exit course" link).
+This keeps the existing manual override path for founders who want a single number, but makes the default a number that's consistent with the pricing they just designed.
 
-### 3. Step pages (reuse existing logic, restructured)
-- **`/course/pricing`** — embeds existing `PricingPlaybook` content + the pricing assumption inputs (currently on Assumptions page) inline. Inputs write to the shared store.
-- **`/course/revenue`** — embeds the Forecast page outputs + the revenue/forecast inputs inline.
-- **`/course/fundraising`** — embeds the Fundraise (Index) dashboard + fundraise inputs inline.
-- **`/course/cashflow`** — embeds the Cashflow page + cashflow-specific inputs inline.
+## Changes
 
-Each step shows: intro → inputs (editable inline, same `AssumptionRow` component) → live output/visualization → Back/Next.
+### 1. `src/lib/pricingStrategy.ts`
+- Add `grossMarginPct: number` to `PricingTier` (per-tier margin estimate, 0–100)
+- Default the three seeded tiers to sensible starting points: Starter 80, Pro 78, Enterprise 70 (rationale: lower-touch self-serve = higher margin; enterprise carries more support/CS load)
+- Update `mergePricingStrategy` and `mergeTier` to coerce/default the new field
+- Add `blendedGrossMargin(pricing: PricingStrategy): number` — revenue-weighted average:
+  - weight per tier = `monthlyPriceNum × targetMix`
+  - returns `Σ(margin_i × weight_i) / Σ(weight_i)`, or 0 if no priced tiers
+- Add `derivedGrossMargin(pricing): number` as the public helper Cashflow consumes (mirrors `derivedStartingMRR` naming)
 
-### 4. Export step (`/course/export`)
-Three download buttons:
-- **Download JSON** — serializes current `Assumptions` (already implemented as "Copy JSON" on Assumptions page; just swap to file download).
-- **Download PDF report** — multi-page PDF covering all 4 sections with key numbers, charts (rendered to images via `html-to-image`, already in deps), and verdicts. Generated client-side with `jspdf` (needs add).
-- **Download Presentation (PPTX)** — investor-style deck with cover, one slide per section (Pricing, Revenue, Fundraising, Cashflow), and a summary slide. Generated client-side with `pptxgenjs` (needs add).
+### 2. `src/lib/assumptions.ts`
+- Add `grossMarginLocked: boolean` to `ForecastOverrides` (default `false`), so the lock state lives alongside the existing two locks
+- No new slice — `cashflow.grossMargin` stays where it is; the override flag just controls whether it's auto-derived
 
-Also shows a "Save & exit to dashboard" link that drops the user on the existing free-navigation Assumptions page.
+### 3. `src/pages/course/Pricing.tsx`
+- In the per-tier editor, add a "Gross margin %" field next to the price/mix inputs
+- Show a small derived line under the tier list: "Blended gross margin: X% — flows into Cashflow unless overridden"
 
-### 5. Routing changes (`src/App.tsx`)
-- `/` → redirect to `/start` (new entry point).
-- New routes: `/start`, `/course/pricing`, `/course/revenue`, `/course/fundraising`, `/course/cashflow`, `/course/export`.
-- Keep existing routes (`/assumptions`, `/forecast`, `/cashflow`, `/pricing-playbook`, and old fundraise dashboard at `/dashboard`) for power users who exit the course.
+### 4. `src/pages/course/Cashflow.tsx`
+- The detailed-model Inputs sidebar already renders Gross margin via `AssumptionRow`. Wrap it with the same `LockToggle` pattern used on Revenue:
+  - When unlocked (default): value = `derivedGrossMargin(pricing)`, edits flip lock on
+  - When locked: value = `cashflow.grossMargin`, click unlock → reset to derived
+- Add a one-line caption when unlocked: "Auto-derived from pricing tiers"
 
-### 6. State & persistence
-- Continue using `useAssumptions` (localStorage). Already handles cross-step persistence — no changes needed.
-- Add a small `courseProgress` field to track furthest step reached (so Next buttons unlock properly on revisit).
+### 5. `src/lib/planSummary.ts`
+- No formula changes — `simulateCashflow` already consumes `cashflow.grossMargin`. The summary picks up the new value for free.
 
-### Files
+### 6. Tests / sanity
+- Existing `src/test/example.test.ts` style: add a small unit test for `blendedGrossMargin` covering: no priced tiers → 0, single tier → that tier's margin, mixed tiers → correct revenue-weighted result.
 
-**New:**
-- `src/pages/Start.tsx`
-- `src/pages/course/Pricing.tsx`, `Revenue.tsx`, `Fundraising.tsx`, `Cashflow.tsx`, `Export.tsx`
-- `src/components/course/CourseLayout.tsx`
-- `src/components/course/StepProgress.tsx`
-- `src/components/course/UploadJson.tsx`
-- `src/lib/exportPdf.ts` (jsPDF report builder)
-- `src/lib/exportPptx.ts` (pptxgenjs deck builder)
+## What this does NOT do
+- Does not vary gross margin month-over-month (e.g. as enterprise mix grows). That's a worthwhile next step but adds a second axis of complexity; this plan keeps a single blended number so the existing `simulateCashflow` math is untouched.
+- Does not model COGS line items (hosting, payment fees, support). The per-tier margin % is the founder's estimate — the point is to make it pricing-aware, not to build a full COGS model.
 
-**Edited:**
-- `src/App.tsx` — new routes + `/` redirect
-- `src/lib/assumptions.ts` — add `courseProgress` field
-- `src/components/NavBar.tsx` — add "Exit course" link variant
+## Files touched
+- `src/lib/pricingStrategy.ts` (extend type + helpers)
+- `src/lib/assumptions.ts` (add lock flag)
+- `src/pages/course/Pricing.tsx` (per-tier margin input + blended readout)
+- `src/pages/course/Cashflow.tsx` (LockToggle on gross margin row)
+- `src/test/` (new unit test for blended margin)
 
-**Dependencies to add:** `jspdf`, `pptxgenjs`
-
-### Out of scope
-- No backend storage of plans (JSON upload/download only).
-- No multi-user accounts.
-- No editing of generated PDF/PPTX after download.
-- Pricing inputs schema: assumes existing pricing fields on `PricingPlaybook` are already captured somewhere editable; if not, we'll add a minimal `PricingAssumptions` block to the store as part of the Pricing step.
