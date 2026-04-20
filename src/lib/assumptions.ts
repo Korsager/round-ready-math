@@ -134,32 +134,23 @@ function load(): LoadResult {
     const hadLegacyFundraiseAmount =
       parsed?.cashflow && Object.prototype.hasOwnProperty.call(parsed.cashflow, "fundraiseAmount");
 
-    // Pricing precedence: parsed.pricing in the new store > legacy standalone key > blank.
-    let pricing: PricingStrategy;
-    if (parsed.pricing) {
-      pricing = mergePricingStrategy(parsed.pricing);
-    } else if (legacyPricing) {
-      pricing = legacyPricing;
+    // Clear legacy pricing key if it was folded into the new store via mergeAssumptionsPayload.
+    if (!parsed?.pricing && legacyPricing) {
       try { localStorage.removeItem(LEGACY_PRICING_STORAGE_KEY); } catch { /* ignore */ }
-    } else {
-      pricing = blankPricingStrategy();
     }
-
-    return {
-      fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed.fundraise ?? {}) },
-      forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
-      cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
-      pricing,
-      forecastOverrides: { ...DEFAULT_FORECAST_OVERRIDES, ...(parsed.forecastOverrides ?? {}) },
-      forecastManuallyEdited: !!parsed.forecastManuallyEdited,
-    };
+    return { value: mergeAssumptionsPayload(parsed, legacyPricing), hadLegacyFundraiseAmount };
   } catch {
-    return DEFAULT_ASSUMPTIONS;
+    return { value: DEFAULT_ASSUMPTIONS, hadLegacyFundraiseAmount: false };
   }
 }
 
 const listeners = new Set<(a: Assumptions) => void>();
-let current: Assumptions = load();
+const _loaded = load();
+let current: Assumptions = _loaded.value;
+// One-shot rewrite: if stale localStorage carried cashflow.fundraiseAmount, persist the cleaned shape now.
+if (_loaded.hadLegacyFundraiseAmount && typeof window !== "undefined") {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); } catch { /* ignore */ }
+}
 
 function save(next: Assumptions) {
   current = next;
