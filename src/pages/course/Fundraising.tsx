@@ -73,7 +73,7 @@ export default function CourseFundraising() {
 
   const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
 
-  const narrative = (() => {
+  const baseNarrative = (() => {
     if (implied.impliedIrrPct >= f.targetIrr) {
       return `Your forecast supports the IRR investors need. A ${f.targetIrr}% fund hurdle is achievable at your projected trajectory.`;
     }
@@ -82,6 +82,9 @@ export default function CourseFundraising() {
     }
     return `Pricing on dilution, your claimed ${f.targetMoic}× MOIC delivers ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% target. Investors will ask for a sharper story — what exit buyer pays this, and when?`;
   })();
+  const narrative = runwayState === "red"
+    ? `Funding gap: this raise doesn't cover the runway needed to execute the plan. ${baseNarrative}`
+    : baseNarrative;
 
   return (
     <CourseLayout
