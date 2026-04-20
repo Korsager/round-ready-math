@@ -3,6 +3,7 @@ import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
 import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
+import { computeImpliedIrr } from "./impliedIrr";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -32,6 +33,7 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     ? (Math.pow(a.fundraise.targetMoic, 1 / a.fundraise.yearsToExit) - 1) * 100 : 0;
   const base = runScenario(a.forecast, "base");
   const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
+  const implied = computeImpliedIrr(a);
 
   // Cover
   const cover = pres.addSlide();
