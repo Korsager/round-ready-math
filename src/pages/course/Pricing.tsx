@@ -324,6 +324,13 @@ function TiersStep({ s, updateTier }: { s: PricingStrategy; updateTier: (i: 0|1|
 function PricesStep({
   s, updateTier, update,
 }: { s: PricingStrategy; updateTier: (i: 0|1|2, p: Partial<PricingTier>) => void; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
+  const derived = useMemo(() => deriveRevenueFromPricing(s), [s]);
+  const intToStr = (n: number) => (n === 0 ? "" : String(n));
+  const parseInt0 = (raw: string) => {
+    const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+
   return (
     <div className="space-y-5">
       <StepHeader kicker="Step 4" title="Set your price points"
@@ -331,26 +338,86 @@ function PricesStep({
       <Hint>
         £9/mo says "commodity tool." £900/mo says "serious partner." Always lead with your highest tier publicly to anchor effectively.
       </Hint>
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_1fr] bg-muted text-xs font-semibold uppercase tracking-wider">
-          <div className="p-3">Tier</div>
-          <div className="p-3">Monthly</div>
-          <div className="p-3">Annual (per mo)</div>
-        </div>
-        {s.tiers.map((t, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_1fr] border-t border-border items-center">
-            <div className="p-3 font-semibold">{t.name || `Tier ${i + 1}`}</div>
-            <div className="p-3">
-              <Input value={t.monthlyPrice} onChange={(e) => updateTier(i as 0|1|2, { monthlyPrice: e.target.value })}
-                placeholder="$29 or Custom" />
-            </div>
-            <div className="p-3">
-              <Input value={t.annualPrice} onChange={(e) => updateTier(i as 0|1|2, { annualPrice: e.target.value })}
-                placeholder="$24" />
-            </div>
+      <p className="text-xs text-muted-foreground">
+        The last two columns seed your revenue forecast on the next step. Leave at 0 for tiers you haven't launched yet, or for custom/enterprise tiers you price manually.
+      </p>
+      <div className="rounded-lg border border-border overflow-x-auto">
+        <div className="min-w-[720px]">
+          <div className="grid grid-cols-[1.1fr_0.9fr_0.9fr_1fr_1fr] bg-muted text-[11px] font-semibold uppercase tracking-wider">
+            <div className="p-3">Tier</div>
+            <div className="p-3">Monthly</div>
+            <div className="p-3">Annual (per mo)</div>
+            <div className="p-3">Customers today</div>
+            <div className="p-3">New / month</div>
           </div>
-        ))}
+          {s.tiers.map((t, i) => (
+            <div key={i} className="grid grid-cols-[1.1fr_0.9fr_0.9fr_1fr_1fr] border-t border-border items-center">
+              <div className="p-3 font-semibold">{t.name || `Tier ${i + 1}`}</div>
+              <div className="p-3">
+                <Input value={t.monthlyPrice} onChange={(e) => updateTier(i as 0|1|2, { monthlyPrice: e.target.value })}
+                  placeholder="$29 or Custom" />
+              </div>
+              <div className="p-3">
+                <Input value={t.annualPrice} onChange={(e) => updateTier(i as 0|1|2, { annualPrice: e.target.value })}
+                  placeholder="$24" />
+              </div>
+              <div className="p-3">
+                <Input type="number" min={0} step={1} inputMode="numeric"
+                  value={intToStr(t.customersMonth0)}
+                  onChange={(e) => updateTier(i as 0|1|2, { customersMonth0: parseInt0(e.target.value) })}
+                  placeholder="0" />
+              </div>
+              <div className="p-3">
+                <Input type="number" min={0} step={1} inputMode="numeric"
+                  value={intToStr(t.newCustomersPerMonth)}
+                  onChange={(e) => updateTier(i as 0|1|2, { newCustomersPerMonth: parseInt0(e.target.value) })}
+                  placeholder="0" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
+
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+        {derived.startingMRR > 0 || derived.monthlyNewBookings > 0 ? (
+          <>
+            <p className="text-sm">
+              Your forecast starts at <strong>{fmtUsd0(derived.startingMRR)} MRR</strong>, growing by{" "}
+              <strong>{fmtUsd0(derived.monthlyNewBookings)} / month</strong> in new bookings.
+            </p>
+            <table className="w-full text-xs">
+              <thead className="text-muted-foreground">
+                <tr className="text-left">
+                  <th className="py-1 font-medium">Tier</th>
+                  <th className="py-1 font-medium text-right">Price</th>
+                  <th className="py-1 font-medium text-right">Customers</th>
+                  <th className="py-1 font-medium text-right">MRR</th>
+                  <th className="py-1 font-medium text-right">New / mo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {derived.perTier.map((t, i) => (
+                  <tr key={i} className="border-t border-border/50">
+                    <td className="py-1.5">{t.name}</td>
+                    <td className="py-1.5 text-right">{t.monthlyPrice ? fmtUsd0(t.monthlyPrice) : "—"}</td>
+                    <td className="py-1.5 text-right">{t.customersMonth0}</td>
+                    <td className="py-1.5 text-right font-medium">{fmtUsd0(t.mrrContribution)}</td>
+                    <td className="py-1.5 text-right">{fmtUsd0(t.bookingsContribution)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[11px] text-muted-foreground italic">
+              You can override these numbers on the next step if your actuals differ.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Add customers and prices above to seed your forecast.
+          </p>
+        )}
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Annual discount %" hint="Common: 17% (≈ 2 months free).">
           <Input value={s.annualDiscountPct} onChange={(e) => update("annualDiscountPct", e.target.value)}
