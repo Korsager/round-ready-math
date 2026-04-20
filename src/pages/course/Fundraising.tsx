@@ -37,6 +37,19 @@ export default function CourseFundraising() {
   }, [f]);
 
   const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
+  const reqGrowth = useMemo(
+    () => requiredMonthlyGrowth(
+      assumptions.forecast.startingMRR,
+      f.targetIrr,
+      f.yearsToExit,
+      f.raise,
+      f.dilutionPct,
+      f.revenueMultiple,
+    ),
+    [assumptions.forecast.startingMRR, f.targetIrr, f.yearsToExit, f.raise, f.dilutionPct, f.revenueMultiple],
+  );
+  const actualGrowth = assumptions.forecast.monthlyGrowthRate;
+  const growthTone = actualGrowth >= reqGrowth ? "text-emerald-600" : actualGrowth >= reqGrowth * 0.7 ? "text-amber-600" : "text-destructive";
 
   const ownershipData = [
     { name: "Founders", value: +(100 - f.dilutionPct).toFixed(1) },
