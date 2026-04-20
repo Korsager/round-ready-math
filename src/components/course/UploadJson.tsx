@@ -21,7 +21,7 @@ export default function UploadJson() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      const merged = mergeAssumptions(parsed);
+      const merged = mergeAssumptionsPayload(parsed);
       setFundraise(merged.fundraise);
       setForecast(merged.forecast);
       setCashflow(merged.cashflow);
