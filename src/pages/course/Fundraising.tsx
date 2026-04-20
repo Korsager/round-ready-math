@@ -302,19 +302,20 @@ function RunwayCheck({
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-[#E5E7EB]/60">
-        <Stat label="Current runway" value={runwayLabel} />
-        <Stat label="Raise lands" value={`Month ${plan.monthsUntilRaise}`} />
+        <Stat label="Current runway" value={runwayLabel} sub={plan.runwayMonth !== null ? cal(plan.runwayMonth) : undefined} />
+        <Stat label="Raise lands" value={`Month ${plan.monthsUntilRaise}`} sub={cal(plan.monthsUntilRaise)} />
         <Stat label="Post-round runway" value={afterLabel} />
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="text-[14px] font-semibold tabular-nums text-[#111827]">{value}</div>
+      {sub && <div className="text-[10px] text-muted-foreground tabular-nums">{sub}</div>}
     </div>
   );
 }
