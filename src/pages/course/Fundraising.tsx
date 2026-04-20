@@ -8,6 +8,7 @@ import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import { useAssumptions } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
+import { requiredMonthlyGrowth } from "@/lib/forecast";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
