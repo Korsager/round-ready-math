@@ -203,6 +203,8 @@ export default function CourseFundraising() {
             </details>
           </div>
 
+          <RunwayCheck plan={plan} state={runwayState} raise={f.raise} horizonMonths={plan.horizonMonths} />
+
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <h3 className="text-[13px] font-semibold text-[#111827] mb-2">IRR sensitivity</h3>
             <HeatmapGrid inputs={{ ...f, shares: 0 }} />
@@ -210,6 +212,93 @@ export default function CourseFundraising() {
         </div>
       </div>
     </CourseLayout>
+  );
+}
+
+function RunwayCheck({
+  plan,
+  state,
+  raise,
+  horizonMonths,
+}: {
+  plan: ReturnType<typeof computePlanSummary>;
+  state: "red" | "amber" | "green";
+  raise: number;
+  horizonMonths: number;
+}) {
+  const runwayLabel = plan.runwayMonth !== null ? `${plan.runwayMonth} mo` : `${horizonMonths}+ mo`;
+  const afterLabel = plan.monthsRunwayAfterRaise !== null ? `${plan.monthsRunwayAfterRaise} mo` : "—";
+  const styles = {
+    red: { wrap: "bg-red-50 border-red-200", icon: AlertCircle, iconClass: "text-destructive", label: "Funding gap", labelClass: "text-destructive" },
+    amber: { wrap: "bg-amber-50 border-amber-200", icon: AlertTriangle, iconClass: "text-amber-600", label: "Tight raise", labelClass: "text-amber-700" },
+    green: { wrap: "bg-emerald-50 border-emerald-200", icon: CheckCircle2, iconClass: "text-emerald-600", label: "Adequate raise", labelClass: "text-emerald-700" },
+  }[state];
+  const Icon = styles.icon;
+
+  let body: JSX.Element;
+  if (state === "red") {
+    body = (
+      <>
+        <p className="text-[13px] text-[#111827] leading-relaxed">
+          You run out of cash in month <strong className="tabular-nums">{plan.runwayMonth}</strong> but the raise isn't planned until month{" "}
+          <strong className="tabular-nums">{plan.monthsUntilRaise}</strong>. Either raise earlier, cut burn, or extend the bridge.
+        </p>
+        <Link to="/course/cashflow" className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline mt-2">
+          Adjust on Cashflow step <ArrowRight size={12} />
+        </Link>
+      </>
+    );
+  } else if (state === "amber") {
+    const needed = plan.monthsRunwayAfterRaise && plan.monthsRunwayAfterRaise > 0
+      ? Math.round((raise * 18) / plan.monthsRunwayAfterRaise)
+      : null;
+    body = (
+      <>
+        <p className="text-[13px] text-[#111827] leading-relaxed">
+          <strong className="tabular-nums">{fmtPlanMoney(raise)}</strong> buys{" "}
+          <strong className="tabular-nums">{plan.monthsRunwayAfterRaise}</strong> months after closing. Most investors expect 18–24 months of post-round runway. Consider raising more or trimming opex.
+        </p>
+        {needed !== null && (
+          <p className="text-[12px] text-muted-foreground mt-1">
+            18 months would cost ~<strong className="tabular-nums text-[#111827]">{fmtPlanMoney(needed)}</strong>.
+          </p>
+        )}
+      </>
+    );
+  } else {
+    body = (
+      <p className="text-[13px] text-[#111827] leading-relaxed">
+        <strong className="tabular-nums">{fmtPlanMoney(raise)}</strong> funds{" "}
+        <strong className="tabular-nums">{plan.monthsRunwayAfterRaise ?? "—"}</strong> months of post-round runway. Cash zero pushed to month{" "}
+        <strong className="tabular-nums">{plan.runwayMonth ?? `${horizonMonths}+`}</strong>.
+      </p>
+    );
+  }
+
+  return (
+    <div className={`rounded-xl border ${styles.wrap} p-4`}>
+      <div className="flex items-start gap-3">
+        <Icon size={18} className={`${styles.iconClass} shrink-0 mt-0.5`} />
+        <div className="min-w-0 flex-1">
+          <div className={`text-[11px] uppercase tracking-wide font-semibold ${styles.labelClass} mb-1`}>{styles.label}</div>
+          {body}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-[#E5E7EB]/60">
+        <Stat label="Current runway" value={runwayLabel} />
+        <Stat label="Raise lands" value={`Month ${plan.monthsUntilRaise}`} />
+        <Stat label="Post-round runway" value={afterLabel} />
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[14px] font-semibold tabular-nums text-[#111827]">{value}</div>
+    </div>
   );
 }
 
