@@ -57,7 +57,7 @@ export default function CourseExport() {
     setBusy("pdf");
     try {
       const charts = await captureCharts();
-      await exportPdf(assumptions, assumptions.pricing, charts);
+      await exportPdf(assumptions, assumptions.pricing, charts, summary);
       mark("pdf");
     } finally { setBusy(null); }
   };
@@ -66,7 +66,7 @@ export default function CourseExport() {
     setBusy("pptx");
     try {
       const charts = await captureCharts();
-      await exportPptx(assumptions, assumptions.pricing, charts);
+      await exportPptx(assumptions, assumptions.pricing, charts, summary);
       mark("pptx");
     } finally { setBusy(null); }
   };
