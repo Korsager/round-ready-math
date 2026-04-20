@@ -1,64 +1,76 @@
 
 
 ## Goal
-Make "month 0" explicit. Today, `startingMRR`, `startingCash`, and all `month N` references float without an anchor date — fine while modelling, misleading once the PDF or PPTX leaves the app. Add a single shared **plan start date** (defaults to today, editable, persisted) and surface it everywhere month 0 is implied.
+Catch inconsistent or malformed JSON imports at the door. Today `UploadJson` accepts any JSON that parses, runs a shallow merge, and silently loads contradictory state. Add a validation pass that surfaces problems to the user with a clear message and a choice: cancel, or load anyway with auto-repairs applied.
 
 ## Approach
-One new field on the assumptions store: `planStartDate: string` (ISO `YYYY-MM`). It's the only new state. Every "Month N" label in the app and exports gets a derived calendar date alongside it via a small helper.
+One new pure module — `src/lib/validateImport.ts` — that takes a parsed payload and returns `{ warnings, errors, repaired }`. `UploadJson` calls it after `JSON.parse` and before applying state. Errors block the import; warnings show in a confirm dialog with "Load anyway" / "Cancel".
+
+This is purely a guardrail layer. No changes to the assumptions store, no changes to the merge semantics in `mergeAssumptionsPayload` (which already handles legacy fields like the stripped `cashflow.fundraiseAmount`).
 
 ## Changes
 
-### 1. `src/lib/assumptions.ts`
-- Add `planStartDate: string` at the top level of `Assumptions` (sibling to `forecast`, `cashflow`, etc.). Default: current month as `YYYY-MM`.
-- Extend `mergeAssumptionsPayload` to accept legacy payloads without the field — fallback to current month.
-- Bump nothing else; the existing localStorage migration already round-trips unknown shapes.
+### 1. New `src/lib/validateImport.ts`
+Pure function `validateImport(parsed: unknown): ValidationResult` returning:
+```ts
+type Severity = "error" | "warning";
+interface Issue { severity: Severity; field: string; message: string; }
+interface ValidationResult {
+  errors: Issue[];     // block import
+  warnings: Issue[];   // show, allow override
+  repaired: unknown;   // payload with auto-fixes applied (e.g. fundraiseAmount stripped, capped values clamped)
+}
+```
 
-### 2. `src/lib/format.ts` (or new `src/lib/dateAnchor.ts`)
-Add two pure helpers:
-- `monthLabel(startISO: string, monthIndex: number): string` → `"Month 6 (Oct 2026)"`
-- `monthShort(startISO: string, monthIndex: number): string` → `"Oct '26"` for chart axes
+Checks performed (errors unless noted):
+- **Shape**: payload is an object, not array/null/primitive. → error
+- **Top-level slices**: `fundraise`, `forecast`, `cashflow`, `pricing` are objects when present. Unknown top-level keys → warning, listed.
+- **Cross-slice fundraise consistency**: if `cashflow.fundraiseAmount` exists and differs from `fundraise.raise`, → warning ("Legacy field will be discarded; using fundraise.raise = $X"). The repaired payload drops `fundraiseAmount`.
+- **Pricing ↔ forecast coherence**: if `pricing.tiers` has any tier with `monthlyPriceNum > 0` but `forecast.startingMRR === 0` and `forecast.monthlyNewBookings === 0`, → warning ("Pricing tiers are defined but forecast shows zero revenue. Re-seed from pricing on the Pricing step.").
+- **Numeric ranges**: 
+  - `fundraise.dilutionPct` outside (0, 100] → warning, clamped to [1, 100] in repaired.
+  - `fundraise.targetIrr`, `fundraise.targetMoic`, `fundraise.yearsToExit`, `fundraise.revenueMultiple` < 0 → warning, clamped to 0.
+  - `cashflow.startingCash`, `startingBurn` < 0 → warning, clamped to 0.
+  - `cashflow.grossMargin` outside [0, 100] → warning, clamped.
+  - `cashflow.monthsUntilRaise` < 0 or > 60 → warning, clamped.
+- **Date anchor**: `planStartDate` present but doesn't match `^\d{4}-\d{2}$` → warning, replaced with current month in repaired.
+- **Tier mix**: pricing tier `targetMix` outside [0, 100] → warning, clamped.
 
-### 3. `src/pages/course/Cashflow.tsx`
-- Add an `AssumptionRow` for **"Plan start month"** at the top of the inputs sidebar, above `startingCash`. Month picker (native `<input type="month">` is fine, matches the existing inline-edit pattern).
-- Caption under the input: "Anchors month 0 for runway, raise timing, and exports."
+All checks are best-effort; missing fields are not errors (defaults will fill them in via `mergeAssumptionsPayload`).
 
-### 4. Chart axis labels
-- `src/components/cashflow/CashflowChart.tsx` and `src/components/forecast/ForecastChart.tsx`: when the user hovers a point, the tooltip shows `Month N (Mon 'YY)` instead of just `Month N`. X-axis ticks stay numeric to keep the charts compact.
+### 2. `src/components/course/UploadJson.tsx`
+Replace the silent flow with:
+1. Parse JSON. If `JSON.parse` throws → show existing error message.
+2. Call `validateImport(parsed)`.
+3. If `errors.length > 0` → show a destructive AlertDialog listing them; only option is "Cancel".
+4. Else if `warnings.length > 0` → show an AlertDialog: "{N} issue(s) found in this plan" with bullet list of warning messages, plus a one-line repair summary ("Auto-repairs will be applied on load."). Buttons: "Cancel" and "Load anyway".
+5. Else → load directly (current behavior).
+6. On "Load anyway" or no-warnings path, pass the **repaired** payload (not the original) to `mergeAssumptionsPayload`.
 
-### 5. `src/components/cashflow/PlanSummary.tsx` and `RunwayCards.tsx`
-- "Raise lands: month 6" → "Raise lands: month 6 (Oct 2026)".
-- "Cash zero: month 14" → "Cash zero: month 14 (Jun 2027)".
+Keep the existing `setError` for catastrophic JSON parse failures. Validation issues use the dialog — clearer and supports lists.
 
-### 6. `src/pages/course/Fundraising.tsx` — RunwayCheck panel
-- Same treatment: red banner "You run out of cash in month 3 (Jul 2026) but the raise isn't planned until month 6 (Oct 2026)".
+### 3. New `src/test/validateImport.test.ts`
+- Empty object → 0 errors, 0 warnings, repaired equals empty object.
+- `null` / array / string → 1 error.
+- `cashflow.fundraiseAmount = 999, fundraise.raise = 2_000_000` → 1 warning, repaired strips `fundraiseAmount`.
+- `fundraise.dilutionPct = 150` → 1 warning, repaired clamps to 100.
+- `cashflow.grossMargin = -10` → 1 warning, repaired clamps to 0.
+- `planStartDate = "garbage"` → 1 warning, repaired replaces with `currentMonthISO()` shape.
+- Pricing tier with `monthlyPriceNum = 50` but `forecast.startingMRR = 0` and `monthlyNewBookings = 0` → 1 warning.
+- Unknown top-level key `{foo: 1}` → 1 warning ("Unknown field 'foo' will be ignored").
+- Valid plan exported from the app round-trips with 0 errors and 0 warnings.
 
-### 7. Exports
-- **`src/lib/exportPdf.ts`**: 
-  - On the cover page, replace `Generated {date}` with two lines: `Plan start: {Mon YYYY}` and `Generated {date}`.
-  - In the "Cashflow & runway" section, every `Month N` row gets the calendar suffix.
-  - Add one paragraph under the cover: "All 'month N' references in this report are measured from the plan start month above."
-- **`src/lib/exportPptx.ts`**: same treatment on the cover slide and the runway/forecast slides.
-- **`src/components/course/UploadJson.tsx`**: no change needed (mergeAssumptionsPayload handles defaults).
-
-### 8. Test
-- Extend `src/test/cashflowShape.test.ts` (or new `dateAnchor.test.ts`):
-  - `monthLabel("2026-04", 0)` → starts with `"Month 0"` and contains `"Apr 2026"`.
-  - `monthLabel("2026-04", 12)` → contains `"Apr 2027"`.
-  - Default `planStartDate` is a valid `YYYY-MM` string.
+### 4. Round-trip guarantee
+Add one assertion in the test suite: serialize `DEFAULT_ASSUMPTIONS`, run `validateImport` on it, expect zero errors and zero warnings. Catches future regressions where a default value drifts outside its own validator's accepted range.
 
 ## What this does NOT do
-- Doesn't shift any math. Month indices stay integer offsets from plan start; runway, IRR, and forecast logic are untouched.
-- Doesn't add a full calendar with day-level precision. Month granularity matches the rest of the model.
-- Doesn't auto-advance the start date over time. If the user opens the tool 3 months later, they update the field manually — same way they'd update starting MRR.
-- Doesn't introduce timezones. ISO `YYYY-MM` is locale-agnostic; rendering uses `toLocaleString('en-US', { month: 'short', year: 'numeric' })`.
+- Doesn't validate the *semantics* of the plan (e.g. "is your raise sensible?"). That's the runway-check / verdict layer's job.
+- Doesn't gate on warnings — user can always proceed. Errors block only when the payload is structurally unusable (not an object, etc.).
+- Doesn't change `mergeAssumptionsPayload` — the merger keeps doing the legacy-field stripping it already does. Validation just *tells the user* about it before merging.
+- Doesn't add a JSON schema dependency. Hand-rolled checks keep the bundle slim and the messages plain-English.
 
 ## Files touched
-- `src/lib/assumptions.ts` (new field + default + merge fallback)
-- `src/lib/format.ts` (or new `src/lib/dateAnchor.ts`) — month label helpers
-- `src/pages/course/Cashflow.tsx` (input row)
-- `src/pages/course/Fundraising.tsx` (RunwayCheck copy)
-- `src/components/cashflow/PlanSummary.tsx`, `RunwayCards.tsx` (label suffixes)
-- `src/components/cashflow/CashflowChart.tsx`, `src/components/forecast/ForecastChart.tsx` (tooltip dates)
-- `src/lib/exportPdf.ts`, `src/lib/exportPptx.ts` (cover + runway sections)
-- `src/test/dateAnchor.test.ts` (new)
+- `src/lib/validateImport.ts` (new)
+- `src/components/course/UploadJson.tsx` (validation flow + AlertDialog)
+- `src/test/validateImport.test.ts` (new)
 
