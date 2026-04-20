@@ -172,16 +172,19 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     ? `Aligned: forecast supports ${implied.impliedIrrPct.toFixed(1)}% IRR, above the ${a.fundraise.targetIrr}% target.`
     : `Gap: forecast implies ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${a.fundraise.targetIrr}% investors require.`);
 
+  const roundsCount = cf.plannedRaises.filter((r) => r.month <= 36 && r.amount > 0).length;
   sectionSlide("Step 4", "Cashflow & runway", [
     { label: "Starting cash", value: fmtUsd(a.cashflow.startingCash) },
     { label: "Starting burn", value: `${fmtUsd(a.cashflow.startingBurn)}/mo` },
     { label: "Runway hits zero", value: cf.runwayMonth ? `Mo ${cf.runwayMonth}` : ">36 mo" },
-    { label: "After raise", value: cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo` },
-    { label: "Break-even", value: cf.breakEvenMonth ? `Mo ${cf.breakEvenMonth}` : "Not in 36 mo" },
+    { label: "After current raise", value: cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo` },
+    { label: "Rounds to m36", value: `${roundsCount}` },
+    { label: "Total raised", value: fmtM(cf.totalRaisedTo36) },
+    { label: "Founder ownership", value: `${cf.founderOwnershipAtM36.toFixed(0)}%` },
     { label: "Burn multiple", value: isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞" },
-    { label: "Raise size", value: fmtM(a.fundraise.raise) },
-    { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise}` },
-  ], `Healthy burn multiple is < 2×. Above signals inefficient growth.`);
+  ], cf.reachesDefaultAliveBeforeRaising
+    ? `Current round alone takes you to default-alive in month ${cf.defaultAliveMonth}.`
+    : `${roundsCount} rounds totaling ${fmtM(cf.totalRaisedTo36)} required to reach month 36. Founders end at ${cf.founderOwnershipAtM36.toFixed(0)}%.`);
 
   if (charts?.cashflowImg) {
     const cs = pres.addSlide();
