@@ -93,11 +93,13 @@ export default function CourseRevenue() {
     setForecastOverrides({ ...forecastOverrides, newBookingsLocked: false });
   };
 
+  const [horizonMonths, setHorizonMonths] = useState<36 | 60>(36);
+
   const { bull, base, bear } = useMemo(() => ({
-    bull: runScenario(forecast, "bull"),
-    base: runScenario(forecast, "base"),
-    bear: runScenario(forecast, "bear"),
-  }), [forecast]);
+    bull: runScenario(forecast, "bull", horizonMonths),
+    base: runScenario(forecast, "base", horizonMonths),
+    bear: runScenario(forecast, "bear", horizonMonths),
+  }), [forecast, horizonMonths]);
 
   const nrr = useMemo(() => deriveAnnualNRR(forecast), [forecast]);
   const forecastRef = useRef<HTMLDivElement>(null);
@@ -192,9 +194,24 @@ export default function CourseRevenue() {
             </div>
           )}
 
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-[12px] text-muted-foreground">Horizon</span>
+            <div className="inline-flex rounded-md border border-[#E5E7EB] bg-white p-0.5">
+              {([36, 60] as const).map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setHorizonMonths(h)}
+                  className={`px-3 py-1 text-[12px] rounded ${horizonMonths === h ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {h} mo
+                </button>
+              ))}
+            </div>
+          </div>
           <StatCards startingMRR={forecast.startingMRR} bull={bull} base={base} bear={bear} />
           <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={forecast.startingMRR} />
-          <MatrixChart ref={matrixRef} inputs={forecast} onCellClick={onCellClick} />
+          <MatrixChart ref={matrixRef} inputs={forecast} onCellClick={onCellClick} horizonMonths={horizonMonths} />
         </div>
       </div>
     </CourseLayout>
