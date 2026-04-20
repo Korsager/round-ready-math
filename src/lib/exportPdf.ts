@@ -30,7 +30,13 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   const implied = computeImpliedIrr(a);
 
   const base = runScenario(a.forecast, "base");
-  const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
+  const cf = simulateCashflow({
+    ...a.cashflow,
+    currentRound: { month: a.cashflow.monthsUntilRaise, amount: a.fundraise.raise, dilutionPct: a.fundraise.dilutionPct },
+    manualRaises: a.raisePlan.manualRaises,
+    autoPlan: a.raisePlan.autoPlan,
+    forecast: a.forecast,
+  }, 36);
 
   const ensureRoom = (need: number) => {
     if (y + need > 740) { doc.addPage(); y = M; }

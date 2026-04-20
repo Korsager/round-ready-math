@@ -32,7 +32,13 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
   const calcIrr = a.fundraise.yearsToExit > 0 && a.fundraise.targetMoic > 0
     ? (Math.pow(a.fundraise.targetMoic, 1 / a.fundraise.yearsToExit) - 1) * 100 : 0;
   const base = runScenario(a.forecast, "base");
-  const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
+  const cf = simulateCashflow({
+    ...a.cashflow,
+    currentRound: { month: a.cashflow.monthsUntilRaise, amount: a.fundraise.raise, dilutionPct: a.fundraise.dilutionPct },
+    manualRaises: a.raisePlan.manualRaises,
+    autoPlan: a.raisePlan.autoPlan,
+    forecast: a.forecast,
+  }, 36);
   const implied = computeImpliedIrr(a);
 
   // Cover
