@@ -148,6 +148,23 @@ export function buildWaterfall(baseMonths: MonthlyData[]): WaterfallData {
   return { startingARR, grossChurn, downgrades, expansion, newBusiness, endingARR, nrr };
 }
 
+export function requiredMonthlyGrowth(
+  startingMRR: number,
+  targetIrr: number,
+  yearsToExit: number,
+  raise: number,
+  dilutionPct: number,
+  revenueMultiple: number,
+): number {
+  const ownership = dilutionPct / 100;
+  if (ownership <= 0 || revenueMultiple <= 0 || startingMRR <= 0 || yearsToExit <= 0) return 0;
+  const requiredExit = (raise * Math.pow(1 + targetIrr / 100, yearsToExit)) / ownership;
+  const requiredMRRatExit = (requiredExit / revenueMultiple) / 12;
+  const months = yearsToExit * 12;
+  if (requiredMRRatExit <= 0) return 0;
+  return (Math.pow(requiredMRRatExit / startingMRR, 1 / months) - 1) * 100;
+}
+
 export function buildMatrix(inputs: ForecastInputs) {
   const nrrRows = [80, 85, 90, 95, 100, 105, 110, 115, 120];
   const growCols = [2, 3, 4, 5, 6, 7, 8, 9, 10];
