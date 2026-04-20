@@ -83,8 +83,37 @@ function readLegacyPricing(): PricingStrategy | null {
   }
 }
 
-function load(): Assumptions {
-  if (typeof window === "undefined") return DEFAULT_ASSUMPTIONS;
+// Exported so UploadJson and tests share the same merge semantics.
+export function mergeAssumptionsPayload(parsed: any, legacyPricing: PricingStrategy | null = null): Assumptions {
+  // Discard the legacy fundraiseAmount field — raise lives on the fundraise slice.
+  const { fundraiseAmount: _legacy, ...cashflowRest } = parsed?.cashflow ?? {};
+
+  let pricing: PricingStrategy;
+  if (parsed?.pricing) {
+    pricing = mergePricingStrategy(parsed.pricing);
+  } else if (legacyPricing) {
+    pricing = legacyPricing;
+  } else {
+    pricing = blankPricingStrategy();
+  }
+
+  return {
+    fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
+    forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
+    cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
+    pricing,
+    forecastOverrides: { ...DEFAULT_FORECAST_OVERRIDES, ...(parsed?.forecastOverrides ?? {}) },
+    forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
+  };
+}
+
+interface LoadResult {
+  value: Assumptions;
+  hadLegacyFundraiseAmount: boolean;
+}
+
+function load(): LoadResult {
+  if (typeof window === "undefined") return { value: DEFAULT_ASSUMPTIONS, hadLegacyFundraiseAmount: false };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const legacyPricing = readLegacyPricing();
@@ -98,39 +127,30 @@ function load(): Assumptions {
       if (legacyPricing) {
         try { localStorage.removeItem(LEGACY_PRICING_STORAGE_KEY); } catch { /* ignore */ }
       }
-      return base;
+      return { value: base, hadLegacyFundraiseAmount: false };
     }
 
     const parsed = JSON.parse(raw);
-    // Discard the legacy fundraiseAmount field — raise lives on the fundraise slice.
-    const { fundraiseAmount: _legacy, ...cashflowRest } = parsed.cashflow ?? {};
+    const hadLegacyFundraiseAmount =
+      parsed?.cashflow && Object.prototype.hasOwnProperty.call(parsed.cashflow, "fundraiseAmount");
 
-    // Pricing precedence: parsed.pricing in the new store > legacy standalone key > blank.
-    let pricing: PricingStrategy;
-    if (parsed.pricing) {
-      pricing = mergePricingStrategy(parsed.pricing);
-    } else if (legacyPricing) {
-      pricing = legacyPricing;
+    // Clear legacy pricing key if it was folded into the new store via mergeAssumptionsPayload.
+    if (!parsed?.pricing && legacyPricing) {
       try { localStorage.removeItem(LEGACY_PRICING_STORAGE_KEY); } catch { /* ignore */ }
-    } else {
-      pricing = blankPricingStrategy();
     }
-
-    return {
-      fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed.fundraise ?? {}) },
-      forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
-      cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
-      pricing,
-      forecastOverrides: { ...DEFAULT_FORECAST_OVERRIDES, ...(parsed.forecastOverrides ?? {}) },
-      forecastManuallyEdited: !!parsed.forecastManuallyEdited,
-    };
+    return { value: mergeAssumptionsPayload(parsed, legacyPricing), hadLegacyFundraiseAmount };
   } catch {
-    return DEFAULT_ASSUMPTIONS;
+    return { value: DEFAULT_ASSUMPTIONS, hadLegacyFundraiseAmount: false };
   }
 }
 
 const listeners = new Set<(a: Assumptions) => void>();
-let current: Assumptions = load();
+const _loaded = load();
+let current: Assumptions = _loaded.value;
+// One-shot rewrite: if stale localStorage carried cashflow.fundraiseAmount, persist the cleaned shape now.
+if (_loaded.hadLegacyFundraiseAmount && typeof window !== "undefined") {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); } catch { /* ignore */ }
+}
 
 function save(next: Assumptions) {
   current = next;
