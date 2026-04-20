@@ -70,7 +70,7 @@ export default function CourseRevenue() {
       startingMRR: seedMRR,
       monthlyNewBookings: seedBookings,
     });
-    setForecastOverrides({ startingMRRLocked: false, newBookingsLocked: false });
+    setForecastOverrides({ ...forecastOverrides, startingMRRLocked: false, newBookingsLocked: false });
     clearForecastEditedFlag();
     setBannerDismissed(false);
   };

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Lock, Unlock } from "lucide-react";
 import CourseLayout from "@/components/course/CourseLayout";
 import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import CashflowChart from "@/components/cashflow/CashflowChart";
@@ -8,6 +8,7 @@ import CashflowTable from "@/components/cashflow/CashflowTable";
 import PlanSummary from "@/components/cashflow/PlanSummary";
 import { useAssumptions } from "@/lib/assumptions";
 import { computePlanSummary } from "@/lib/planSummary";
+import { derivedGrossMargin } from "@/lib/pricingStrategy";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -17,13 +18,39 @@ const fmtPct = (d = 1) => (v: number) => `${v.toFixed(d)}%`;
 const fmtNum = (s = "") => (v: number) => `${v.toLocaleString("en-US")}${s}`;
 
 export default function CourseCashflow() {
-  const { assumptions, setCashflow } = useAssumptions();
+  const { assumptions, setCashflow, setForecastOverrides } = useAssumptions();
   const c = assumptions.cashflow;
   const fundraiseAmount = assumptions.fundraise.raise;
+  const { forecastOverrides, pricing } = assumptions;
   const [showDetails, setShowDetails] = useState(false);
+
+  const seedGM = useMemo(() => derivedGrossMargin(pricing), [pricing]);
+  const hasPricingGM = seedGM > 0;
+
+  // Auto-derive: when unlocked AND pricing implies a margin, push the derived
+  // value into cashflow.grossMargin. Mirrors the Revenue page lock pattern.
+  useEffect(() => {
+    if (forecastOverrides.grossMarginLocked) return;
+    if (!hasPricingGM) return;
+    if (Math.abs(c.grossMargin - seedGM) > 0.05) {
+      setCashflow({ ...c, grossMargin: seedGM });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedGM, forecastOverrides.grossMarginLocked, hasPricingGM]);
+
+  const overrideGM = () => {
+    setCashflow({ ...c, grossMargin: hasPricingGM ? seedGM : c.grossMargin });
+    setForecastOverrides({ ...forecastOverrides, grossMarginLocked: true });
+  };
+  const resyncGM = () => {
+    if (hasPricingGM) setCashflow({ ...c, grossMargin: seedGM });
+    setForecastOverrides({ ...forecastOverrides, grossMarginLocked: false });
+  };
 
   const summary = useMemo(() => computePlanSummary(assumptions), [assumptions]);
   const result = summary.cfBase;
+
+  const gmLocked = forecastOverrides.grossMarginLocked || !hasPricingGM;
 
   return (
     <CourseLayout
@@ -53,7 +80,19 @@ export default function CourseCashflow() {
               <AssumptionRow label="Months until raise" value={c.monthsUntilRaise} format={fmtNum(" mo")} onChange={(v) => setCashflow({ ...c, monthsUntilRaise: v })} />
               <AssumptionRow label="Starting OpEx" value={c.startingBurn} format={fmtUsd} onChange={(v) => setCashflow({ ...c, startingBurn: v })} />
               <AssumptionRow label="OpEx growth" value={c.opexGrowthRate} format={fmtPct(1)} onChange={(v) => setCashflow({ ...c, opexGrowthRate: v })} />
-              <AssumptionRow label="Gross margin" value={c.grossMargin} format={fmtPct(0)} onChange={(v) => setCashflow({ ...c, grossMargin: v })} />
+              {gmLocked ? (
+                <>
+                  <AssumptionRow label="Gross margin" value={c.grossMargin} format={fmtPct(0)} onChange={(v) => setCashflow({ ...c, grossMargin: v })} />
+                  {hasPricingGM && (
+                    <CashflowLockToggle locked onClick={resyncGM} label="Manual override" actionLabel="Re-sync to pricing" />
+                  )}
+                </>
+              ) : (
+                <>
+                  <AssumptionRow label="Gross margin" value={c.grossMargin} format={fmtPct(0)} derived description="Auto-derived from pricing tiers" />
+                  <CashflowLockToggle locked={false} onClick={overrideGM} label="Auto from pricing" actionLabel="Override" />
+                </>
+              )}
             </section>
 
             <div className="space-y-4 min-w-0">
@@ -65,5 +104,25 @@ export default function CourseCashflow() {
         )}
       </div>
     </CourseLayout>
+  );
+}
+
+function CashflowLockToggle({
+  locked, onClick, label, actionLabel,
+}: { locked: boolean; onClick: () => void; label: string; actionLabel: string }) {
+  const Icon = locked ? Unlock : Lock;
+  return (
+    <div className="flex items-center justify-between gap-2 -mt-1 mb-1.5 pb-2 border-b border-[#F3F4F6]">
+      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <Icon size={10} /> {label}
+      </span>
+      <button
+        type="button"
+        onClick={onClick}
+        className="text-[10px] uppercase tracking-wide font-semibold text-primary hover:underline"
+      >
+        {actionLabel}
+      </button>
+    </div>
   );
 }

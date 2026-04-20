@@ -14,6 +14,7 @@ export interface PricingTier {
   customersMonth0: number;
   newCustomersPerMonth: number;
   targetMix: number;          // 0–100 share of new customers landing in this tier
+  grossMarginPct: number;     // 0–100 estimated gross margin for this tier
 }
 
 export interface PricingContext {
@@ -51,6 +52,7 @@ const blankTier = (overrides: Partial<PricingTier>): PricingTier => ({
   customersMonth0: 0,
   newCustomersPerMonth: 0,
   targetMix: 0,
+  grossMarginPct: 75,
   ...overrides,
 });
 
@@ -60,9 +62,9 @@ export const blankPricingStrategy = (): PricingStrategy => ({
   models: [],
   modelNotes: "",
   tiers: [
-    blankTier({ name: "Starter", job: "Make Pro look like the obvious choice", targetMix: 20 }),
-    blankTier({ name: "Pro", job: "Where 60–70% of customers should land", targetMix: 60 }),
-    blankTier({ name: "Enterprise", job: "Anchor the high end. Custom — talk to us.", monthlyPrice: "Custom", annualPrice: "Custom", targetMix: 20 }),
+    blankTier({ name: "Starter", job: "Make Pro look like the obvious choice", targetMix: 20, grossMarginPct: 80 }),
+    blankTier({ name: "Pro", job: "Where 60–70% of customers should land", targetMix: 60, grossMarginPct: 78 }),
+    blankTier({ name: "Enterprise", job: "Anchor the high end. Custom — talk to us.", monthlyPrice: "Custom", annualPrice: "Custom", targetMix: 20, grossMarginPct: 70 }),
   ],
   annualDiscountPct: "",
   anchoringNotes: "",
@@ -80,6 +82,7 @@ function mergeTier(base: PricingTier, raw: Partial<PricingTier> | undefined): Pr
     customersMonth0: Number.isFinite(t.customersMonth0) ? Number(t.customersMonth0) : 0,
     newCustomersPerMonth: Number.isFinite(t.newCustomersPerMonth) ? Number(t.newCustomersPerMonth) : 0,
     targetMix: Number.isFinite(t.targetMix) ? Number(t.targetMix) : 0,
+    grossMarginPct: Number.isFinite(t.grossMarginPct) ? Number(t.grossMarginPct) : base.grossMarginPct,
   };
 }
 
@@ -162,4 +165,24 @@ export function derivedStartingMRR(pricing: PricingStrategy): number {
 
 export function derivedMonthlyNewBookings(pricing: PricingStrategy): number {
   return blendedARPU(pricing) * (pricing.targetNewCustomersPerMonth || 0);
+}
+
+// Revenue-weighted blended gross margin %. Weight per tier = price × targetMix.
+// Returns 0 when no priced tiers exist (caller can fall back to a manual value).
+export function blendedGrossMargin(pricing: PricingStrategy): number {
+  let totalWeight = 0;
+  let weighted = 0;
+  for (const t of pricing.tiers) {
+    const price = t.monthlyPriceNum || 0;
+    const mix = t.targetMix || 0;
+    const weight = price * mix;
+    if (weight <= 0) continue;
+    totalWeight += weight;
+    weighted += (t.grossMarginPct || 0) * weight;
+  }
+  return totalWeight > 0 ? weighted / totalWeight : 0;
+}
+
+export function derivedGrossMargin(pricing: PricingStrategy): number {
+  return blendedGrossMargin(pricing);
 }

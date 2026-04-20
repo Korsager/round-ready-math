@@ -30,6 +30,7 @@ export interface CashflowAssumptions {
 export interface ForecastOverrides {
   startingMRRLocked: boolean;
   newBookingsLocked: boolean;
+  grossMarginLocked: boolean;
 }
 
 export interface Assumptions {
@@ -54,6 +55,7 @@ export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
 export const DEFAULT_FORECAST_OVERRIDES: ForecastOverrides = {
   startingMRRLocked: false,
   newBookingsLocked: false,
+  grossMarginLocked: false,
 };
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {

@@ -16,6 +16,7 @@ import {
   PricingTier,
   blankPricingStrategy,
   blendedARPU,
+  blendedGrossMargin,
   derivedStartingMRR,
   derivedMonthlyNewBookings,
 } from "@/lib/pricingStrategy";
@@ -342,6 +343,7 @@ function PricesStep({
   const arpu = blendedARPU(s);
   const startMRR = derivedStartingMRR(s);
   const newBookings = derivedMonthlyNewBookings(s);
+  const blendedGM = blendedGrossMargin(s);
 
   return (
     <div className="space-y-5">
@@ -354,16 +356,17 @@ function PricesStep({
         The numeric price and target mix feed your revenue forecast. Use the display field for anything ("$29", "Custom") and the numeric field for the math.
       </p>
       <div className="rounded-lg border border-border overflow-x-auto">
-        <div className="min-w-[820px]">
-          <div className="grid grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr] bg-muted text-[11px] font-semibold uppercase tracking-wider">
+        <div className="min-w-[920px]">
+          <div className="grid grid-cols-[1.1fr_1fr_0.7fr_0.7fr_0.7fr_0.7fr] bg-muted text-[11px] font-semibold uppercase tracking-wider">
             <div className="p-3">Tier</div>
             <div className="p-3">Monthly (display)</div>
             <div className="p-3">As a number</div>
             <div className="p-3">Annual (per mo)</div>
             <div className="p-3">Target mix %</div>
+            <div className="p-3">Gross margin %</div>
           </div>
           {s.tiers.map((t, i) => (
-            <div key={i} className="grid grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr] border-t border-border items-center">
+            <div key={i} className="grid grid-cols-[1.1fr_1fr_0.7fr_0.7fr_0.7fr_0.7fr] border-t border-border items-center">
               <div className="p-3 font-semibold">{t.name || `Tier ${i + 1}`}</div>
               <div className="p-3">
                 <Input value={t.monthlyPrice} onChange={(e) => updateTier(i as 0|1|2, { monthlyPrice: e.target.value })}
@@ -384,6 +387,12 @@ function PricesStep({
                   value={numToStr(t.targetMix)}
                   onChange={(e) => updateTier(i as 0|1|2, { targetMix: parseFloat0(e.target.value) })}
                   placeholder="0" />
+              </div>
+              <div className="p-3">
+                <Input type="number" min={0} max={100} step={1} inputMode="numeric"
+                  value={numToStr(t.grossMarginPct)}
+                  onChange={(e) => updateTier(i as 0|1|2, { grossMarginPct: parseFloat0(e.target.value) })}
+                  placeholder="75" />
               </div>
             </div>
           ))}
@@ -411,7 +420,7 @@ function PricesStep({
         </Field>
       </div>
 
-      <div className="rounded-lg border border-border bg-muted/30 p-4">
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
         {arpu > 0 ? (
           <p className="text-sm">
             Blended ARPU: <strong>{fmtUsd0(arpu)}</strong> · implies starting MRR of{" "}
@@ -421,6 +430,11 @@ function PricesStep({
         ) : (
           <p className="text-sm text-muted-foreground">
             Add numeric prices, target mix, and customer counts above to see your blended ARPU and forecast seed.
+          </p>
+        )}
+        {blendedGM > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Blended gross margin: <strong className="text-foreground">{blendedGM.toFixed(1)}%</strong> — flows into Cashflow unless overridden.
           </p>
         )}
       </div>
