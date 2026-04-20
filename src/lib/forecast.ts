@@ -27,6 +27,7 @@ export interface ScenarioResult {
   months: MonthlyData[];
   endingMRR: number;
   endingARR: number;
+  horizonMonths: number;
 }
 
 export function deriveAnnualNRR(inputs: Pick<ForecastInputs, "monthlyGrossChurnRate" | "monthlyDowngradeRate" | "monthlyExpansionRate">): number {
@@ -87,7 +88,11 @@ export const SCENARIOS = {
   bear: { growthMult: 0.5, churnMult: 1.8, downMult: 1.6, expMult: 0.5, rampMult: 1.4, color: "#EF4444", label: "Bear" },
 } as const;
 
-export function runScenario(inputs: ForecastInputs, scenario: keyof typeof SCENARIOS): ScenarioResult {
+export function runScenario(
+  inputs: ForecastInputs,
+  scenario: keyof typeof SCENARIOS,
+  horizonMonths: number = 36,
+): ScenarioResult {
   const s = SCENARIOS[scenario];
   const adjusted: ForecastInputs = {
     ...inputs,
@@ -97,13 +102,15 @@ export function runScenario(inputs: ForecastInputs, scenario: keyof typeof SCENA
     monthlyExpansionRate: inputs.monthlyExpansionRate * s.expMult,
     hiringLagDays: inputs.hiringLagDays * s.rampMult,
   };
-  const months = simulate(adjusted, 36);
+  const months = simulate(adjusted, horizonMonths);
+  const last = months[months.length - 1];
   return {
     name: scenario,
     color: s.color,
     months,
-    endingMRR: months[36].mrr,
-    endingARR: months[36].arr,
+    endingMRR: last.mrr,
+    endingARR: last.arr,
+    horizonMonths,
   };
 }
 

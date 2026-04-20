@@ -2,7 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import type { ForecastInputs } from "./forecast";
 import { DEFAULT_INPUTS } from "./presets";
 import { DEFAULT_CASHFLOW } from "./cashflow";
-import { DEFAULT_AUTO_PLAN, type PlannedRaise, type AutoPlanConfig } from "./raises";
+import {
+  type PricingStrategy,
+  blankPricingStrategy,
+  mergePricingStrategy,
+  LEGACY_PRICING_STORAGE_KEY,
+} from "./pricingStrategy";
 
 export interface FundraiseAssumptions {
   raise: number;
@@ -22,16 +27,11 @@ export interface CashflowAssumptions {
   grossMargin: number;
 }
 
-export interface RaisePlanAssumptions {
-  manualRaises: PlannedRaise[];
-  autoPlan: AutoPlanConfig;
-}
-
 export interface Assumptions {
   fundraise: FundraiseAssumptions;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
-  raisePlan: RaisePlanAssumptions;
+  pricing: PricingStrategy;
   forecastManuallyEdited: boolean;
 }
 
@@ -45,37 +45,67 @@ export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
   valuationMethod: "auto",
 };
 
-export const DEFAULT_RAISE_PLAN: RaisePlanAssumptions = {
-  manualRaises: [],
-  autoPlan: DEFAULT_AUTO_PLAN,
-};
-
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
-  raisePlan: DEFAULT_RAISE_PLAN,
+  pricing: blankPricingStrategy(),
   forecastManuallyEdited: false,
 };
 
 const STORAGE_KEY = "founders-toolkit-assumptions-v1";
 
+// One-time migration: if the old standalone pricing key exists and the new
+// store has no pricing yet, fold it in and delete the legacy key.
+function readLegacyPricing(): PricingStrategy | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LEGACY_PRICING_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return mergePricingStrategy(parsed);
+  } catch {
+    return null;
+  }
+}
+
 function load(): Assumptions {
   if (typeof window === "undefined") return DEFAULT_ASSUMPTIONS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_ASSUMPTIONS;
+    const legacyPricing = readLegacyPricing();
+
+    if (!raw) {
+      const base: Assumptions = {
+        ...DEFAULT_ASSUMPTIONS,
+        pricing: legacyPricing ?? blankPricingStrategy(),
+      };
+      if (legacyPricing) {
+        try { localStorage.removeItem(LEGACY_PRICING_STORAGE_KEY); } catch { /* ignore */ }
+      }
+      return base;
+    }
+
     const parsed = JSON.parse(raw);
+    // Discard the legacy fundraiseAmount field — raise lives on the fundraise slice.
     const { fundraiseAmount: _legacy, ...cashflowRest } = parsed.cashflow ?? {};
-    const rp = parsed.raisePlan ?? {};
+
+    // Pricing precedence: parsed.pricing in the new store > legacy standalone key > blank.
+    let pricing: PricingStrategy;
+    if (parsed.pricing) {
+      pricing = mergePricingStrategy(parsed.pricing);
+    } else if (legacyPricing) {
+      pricing = legacyPricing;
+      try { localStorage.removeItem(LEGACY_PRICING_STORAGE_KEY); } catch { /* ignore */ }
+    } else {
+      pricing = blankPricingStrategy();
+    }
+
     return {
       fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed.fundraise ?? {}) },
       forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
       cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
-      raisePlan: {
-        manualRaises: Array.isArray(rp.manualRaises) ? rp.manualRaises : [],
-        autoPlan: { ...DEFAULT_AUTO_PLAN, ...(rp.autoPlan ?? {}) },
-      },
+      pricing,
       forecastManuallyEdited: !!parsed.forecastManuallyEdited,
     };
   } catch {
@@ -100,10 +130,12 @@ export function useAssumptions() {
     return () => { listeners.delete(l); };
   }, []);
 
+  // User-driven forecast edits — flips the manual-edit flag.
   const setForecast = useCallback((f: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => {
     const next = typeof f === "function" ? (f as (p: ForecastInputs) => ForecastInputs)(current.forecast) : f;
     save({ ...current, forecast: next, forecastManuallyEdited: true });
   }, []);
+  // Programmatic seeding from pricing — does NOT flip the flag.
   const seedForecast = useCallback((f: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => {
     const next = typeof f === "function" ? (f as (p: ForecastInputs) => ForecastInputs)(current.forecast) : f;
     save({ ...current, forecast: next });
@@ -119,13 +151,22 @@ export function useAssumptions() {
     const next = typeof f === "function" ? (f as (p: FundraiseAssumptions) => FundraiseAssumptions)(current.fundraise) : f;
     save({ ...current, fundraise: next });
   }, []);
-  const setRaisePlan = useCallback((r: RaisePlanAssumptions | ((p: RaisePlanAssumptions) => RaisePlanAssumptions)) => {
-    const next = typeof r === "function" ? (r as (p: RaisePlanAssumptions) => RaisePlanAssumptions)(current.raisePlan) : r;
-    save({ ...current, raisePlan: next });
+  const setPricing = useCallback((p: PricingStrategy | ((prev: PricingStrategy) => PricingStrategy)) => {
+    const next = typeof p === "function" ? (p as (prev: PricingStrategy) => PricingStrategy)(current.pricing) : p;
+    save({ ...current, pricing: next });
   }, []);
   const reset = useCallback(() => save(DEFAULT_ASSUMPTIONS), []);
 
-  return { assumptions: state, setForecast, seedForecast, clearForecastEditedFlag, setCashflow, setFundraise, setRaisePlan, reset };
+  return {
+    assumptions: state,
+    setForecast,
+    seedForecast,
+    clearForecastEditedFlag,
+    setCashflow,
+    setFundraise,
+    setPricing,
+    reset,
+  };
 }
 
 export function parseShorthand(raw: string): number | null {

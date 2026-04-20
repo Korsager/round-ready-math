@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
-import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
+import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
@@ -14,7 +14,8 @@ export interface ExportCharts {
 }
 
 export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
-  const pricing = pricingArg ?? loadPricingStrategy();
+  // Pricing lives on the assumptions store; fall back to blank if not provided.
+  const pricing = pricingArg ?? a.pricing ?? blankPricingStrategy();
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = doc.internal.pageSize.getWidth();
   const M = 56;
@@ -30,13 +31,7 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   const implied = computeImpliedIrr(a);
 
   const base = runScenario(a.forecast, "base");
-  const cf = simulateCashflow({
-    ...a.cashflow,
-    currentRound: { month: a.cashflow.monthsUntilRaise, amount: a.fundraise.raise, dilutionPct: a.fundraise.dilutionPct },
-    manualRaises: a.raisePlan.manualRaises,
-    autoPlan: a.raisePlan.autoPlan,
-    forecast: a.forecast,
-  }, 36);
+  const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
 
   const ensureRoom = (need: number) => {
     if (y + need > 740) { doc.addPage(); y = M; }
@@ -164,28 +159,11 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Starting OpEx", `${fmtUsd(a.cashflow.startingBurn)}/mo`);
   row("OpEx growth", `${a.cashflow.opexGrowthRate}%/mo`);
   row("Gross margin", `${a.cashflow.grossMargin}%`);
-  row("Fundraise inflow (current)", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise}`);
+  row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise}`);
   row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth}` : "Beyond 36 months");
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth}` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
-  y += 12;
-
-  // Capital plan — multi-round summary
-  subhead("Capital plan to month 36");
-  row("Rounds to month 36", `${cf.plannedRaises.filter((r) => r.month <= 36 && r.amount > 0).length}`);
-  row("Total raised", fmtM(cf.totalRaisedTo36));
-  row("Cumulative dilution", `${cf.cumulativeDilutionPct.toFixed(1)}%`);
-  row("Founder ownership at m36", `${cf.founderOwnershipAtM36.toFixed(1)}%`);
-  if (cf.autoPlanExhausted) {
-    para("Auto-plan hit its max-rounds cap and the plan still runs out of cash. Raise more in earlier rounds, cut burn, or extend the target.");
-  }
-  y += 6;
-  subhead("Round schedule");
-  cf.plannedRaises.filter((r) => r.month <= 36 && r.amount > 0).forEach((r) => {
-    const tag = r.source === "current" ? "current" : r.source === "auto" ? "auto" : "manual";
-    row(`${r.label} (${tag}) — mo ${r.month}`, `${fmtM(r.amount)} · ${r.dilutionPct.toFixed(0)}% dilution`);
-  });
   y += 12;
 
   if (charts?.cashflowImg) {
