@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+
 import {
   Check, ChevronLeft, ChevronRight, Target, Layers,
   DollarSign, Zap, ClipboardCheck, Lightbulb, Sparkles, RotateCcw,
@@ -82,7 +82,6 @@ export default function CoursePricing() {
 
   const prev = () => setStep((n) => Math.max(n - 1, 0));
 
-  const navigate = useNavigate();
   const { assumptions, seedForecast, clearForecastEditedFlag } = useAssumptions();
 
   const seedFromPricing = () => {
