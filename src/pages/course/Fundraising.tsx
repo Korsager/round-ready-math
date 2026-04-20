@@ -171,6 +171,10 @@ export default function CourseFundraising() {
 
           <div className="rounded-xl border border-[#E5E7EB] bg-secondary/40 p-4">
             <p className="text-[13px] text-[#374151] leading-relaxed">{narrative}</p>
+            <p className="text-[12px] text-[#374151] mt-2">
+              Target requires compounding MRR at <span className="font-semibold tabular-nums">{reqGrowth.toFixed(2)}%/mo</span> — your forecast assumes{" "}
+              <span className={`font-semibold tabular-nums ${growthTone}`}>{actualGrowth.toFixed(2)}%/mo</span>.
+            </p>
             <details className="mt-3 group">
               <summary className="flex items-center gap-1 cursor-pointer text-[12px] font-medium text-[#6B7280] hover:text-[#111827] list-none">
                 <ChevronDown size={12} className="transition-transform group-open:rotate-180" />
