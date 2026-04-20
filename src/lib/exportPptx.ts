@@ -4,6 +4,7 @@ import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
 import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
+import { computePlanSummary, type PlanSummary, fmtPlanMoney } from "./planSummary";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -19,9 +20,10 @@ export interface ExportCharts {
   cashflowImg?: string;
 }
 
-export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
+export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts, summaryArg?: PlanSummary) {
   // Pricing lives on the assumptions store; fall back to blank if not provided.
   const pricing = pricingArg ?? a.pricing ?? blankPricingStrategy();
+  const summary = summaryArg ?? computePlanSummary(a);
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
 
@@ -43,6 +45,36 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
   cover.addText("Pricing · Revenue · Fundraising · Cashflow", { x: 0.6, y: 3.7, w: 12, h: 0.5, fontSize: 20, color: ICE, fontFace: "Calibri" });
   cover.addText(new Date().toLocaleDateString(), { x: 0.6, y: 6.6, w: 12, h: 0.4, fontSize: 12, color: ICE });
 
+  // Plan summary slide (right after cover)
+  {
+    const ps = pres.addSlide();
+    ps.background = { color: "FFFFFF" };
+    ps.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
+    ps.addText("PLAN SUMMARY", { x: 0.7, y: 0.4, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
+    ps.addText(summary.planSentence, { x: 0.7, y: 0.85, w: 12, h: 1.6, fontSize: 26, bold: true, color: INK, fontFace: "Calibri" });
+
+    const psStats: { label: string; value: string }[] = [
+      { label: "Runway today", value: summary.runwayMonth !== null ? `${summary.runwayMonth} mo` : `${summary.horizonMonths}+ mo` },
+      { label: "Raise by", value: `Mo ${summary.monthsUntilRaise}` },
+      { label: "Runway after raise", value: summary.monthsRunwayAfterRaise !== null ? `${summary.monthsRunwayAfterRaise} mo` : "—" },
+      { label: `MRR today → yr ${summary.yearsToExit}`, value: `${fmtPlanMoney(summary.startingMRR)} → ${fmtPlanMoney(summary.endingMRR)}` },
+      { label: "Required growth", value: `${summary.requiredMonthlyGrowth.toFixed(2)}%/mo` },
+      { label: "Implied exit value", value: fmtPlanMoney(summary.impliedExitValue) },
+    ];
+    const psCardW = 4.0, psCardH = 1.35, psGap = 0.2, psStartX = 0.7, psStartY = 2.7;
+    psStats.forEach((stat, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = psStartX + col * (psCardW + psGap);
+      const y = psStartY + row * (psCardH + psGap);
+      ps.addShape(pres.ShapeType.roundRect, { x, y, w: psCardW, h: psCardH, fill: { color: "F9FAFB" }, line: { color: "E5E7EB" }, rectRadius: 0.1 });
+      ps.addText(stat.label, { x: x + 0.2, y: y + 0.15, w: psCardW - 0.4, h: 0.3, fontSize: 11, color: MUTED });
+      ps.addText(stat.value, { x: x + 0.2, y: y + 0.45, w: psCardW - 0.4, h: 0.8, fontSize: 20, bold: true, color: NAVY, fontFace: "Calibri" });
+    });
+
+    const verdictColor = summary.verdict === "green" ? "059669" : summary.verdict === "amber" ? "D97706" : "DC2626";
+    ps.addText(summary.verdictSentence, { x: 0.7, y: 6.55, w: 12, h: 0.6, fontSize: 13, italic: true, color: verdictColor, fontFace: "Calibri", bold: true });
+  }
   const sectionSlide = (kicker: string, title: string, stats: { label: string; value: string }[], note: string) => {
     const s = pres.addSlide();
     s.background = { color: "FFFFFF" };

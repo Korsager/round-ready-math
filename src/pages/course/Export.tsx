@@ -8,6 +8,7 @@ import { exportPdf } from "@/lib/exportPdf";
 import { exportPptx } from "@/lib/exportPptx";
 import { runScenario } from "@/lib/forecast";
 import { simulateCashflow } from "@/lib/cashflow";
+import { computePlanSummary } from "@/lib/planSummary";
 import ForecastChart from "@/components/forecast/ForecastChart";
 import CashflowChart from "@/components/cashflow/CashflowChart";
 
@@ -20,11 +21,12 @@ export default function CourseExport() {
   const forecastRef = useRef<HTMLDivElement>(null);
   const cashflowRef = useRef<HTMLDivElement>(null);
 
-  const { bull, base, bear, cf } = useMemo(() => ({
+  const { bull, base, bear, cf, summary } = useMemo(() => ({
     bull: runScenario(assumptions.forecast, "bull"),
     base: runScenario(assumptions.forecast, "base"),
     bear: runScenario(assumptions.forecast, "bear"),
     cf: simulateCashflow({ ...assumptions.cashflow, fundraiseAmount: assumptions.fundraise.raise, forecast: assumptions.forecast }, 36),
+    summary: computePlanSummary(assumptions),
   }), [assumptions]);
 
   const captureCharts = async () => {
@@ -55,7 +57,7 @@ export default function CourseExport() {
     setBusy("pdf");
     try {
       const charts = await captureCharts();
-      await exportPdf(assumptions, assumptions.pricing, charts);
+      await exportPdf(assumptions, assumptions.pricing, charts, summary);
       mark("pdf");
     } finally { setBusy(null); }
   };
@@ -64,7 +66,7 @@ export default function CourseExport() {
     setBusy("pptx");
     try {
       const charts = await captureCharts();
-      await exportPptx(assumptions, assumptions.pricing, charts);
+      await exportPptx(assumptions, assumptions.pricing, charts, summary);
       mark("pptx");
     } finally { setBusy(null); }
   };
