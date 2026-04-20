@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { ForecastInputs } from "./forecast";
 import { DEFAULT_INPUTS } from "./presets";
 import { DEFAULT_CASHFLOW } from "./cashflow";
+import { DEFAULT_AUTO_PLAN, type PlannedRaise, type AutoPlanConfig } from "./raises";
 
 export interface FundraiseAssumptions {
   raise: number;
@@ -21,10 +22,16 @@ export interface CashflowAssumptions {
   grossMargin: number;
 }
 
+export interface RaisePlanAssumptions {
+  manualRaises: PlannedRaise[];
+  autoPlan: AutoPlanConfig;
+}
+
 export interface Assumptions {
   fundraise: FundraiseAssumptions;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
+  raisePlan: RaisePlanAssumptions;
   forecastManuallyEdited: boolean;
 }
 
@@ -38,10 +45,16 @@ export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
   valuationMethod: "auto",
 };
 
+export const DEFAULT_RAISE_PLAN: RaisePlanAssumptions = {
+  manualRaises: [],
+  autoPlan: DEFAULT_AUTO_PLAN,
+};
+
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
+  raisePlan: DEFAULT_RAISE_PLAN,
   forecastManuallyEdited: false,
 };
 
@@ -53,12 +66,16 @@ function load(): Assumptions {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_ASSUMPTIONS;
     const parsed = JSON.parse(raw);
-    // Discard the legacy fundraiseAmount field — raise lives on the fundraise slice.
     const { fundraiseAmount: _legacy, ...cashflowRest } = parsed.cashflow ?? {};
+    const rp = parsed.raisePlan ?? {};
     return {
       fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed.fundraise ?? {}) },
       forecast: { ...DEFAULT_INPUTS, ...(parsed.forecast ?? {}) },
       cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
+      raisePlan: {
+        manualRaises: Array.isArray(rp.manualRaises) ? rp.manualRaises : [],
+        autoPlan: { ...DEFAULT_AUTO_PLAN, ...(rp.autoPlan ?? {}) },
+      },
       forecastManuallyEdited: !!parsed.forecastManuallyEdited,
     };
   } catch {
@@ -83,12 +100,10 @@ export function useAssumptions() {
     return () => { listeners.delete(l); };
   }, []);
 
-  // User-driven forecast edits — flips the manual-edit flag.
   const setForecast = useCallback((f: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => {
     const next = typeof f === "function" ? (f as (p: ForecastInputs) => ForecastInputs)(current.forecast) : f;
     save({ ...current, forecast: next, forecastManuallyEdited: true });
   }, []);
-  // Programmatic seeding from pricing — does NOT flip the flag.
   const seedForecast = useCallback((f: ForecastInputs | ((p: ForecastInputs) => ForecastInputs)) => {
     const next = typeof f === "function" ? (f as (p: ForecastInputs) => ForecastInputs)(current.forecast) : f;
     save({ ...current, forecast: next });
@@ -104,9 +119,13 @@ export function useAssumptions() {
     const next = typeof f === "function" ? (f as (p: FundraiseAssumptions) => FundraiseAssumptions)(current.fundraise) : f;
     save({ ...current, fundraise: next });
   }, []);
+  const setRaisePlan = useCallback((r: RaisePlanAssumptions | ((p: RaisePlanAssumptions) => RaisePlanAssumptions)) => {
+    const next = typeof r === "function" ? (r as (p: RaisePlanAssumptions) => RaisePlanAssumptions)(current.raisePlan) : r;
+    save({ ...current, raisePlan: next });
+  }, []);
   const reset = useCallback(() => save(DEFAULT_ASSUMPTIONS), []);
 
-  return { assumptions: state, setForecast, seedForecast, clearForecastEditedFlag, setCashflow, setFundraise, reset };
+  return { assumptions: state, setForecast, seedForecast, clearForecastEditedFlag, setCashflow, setFundraise, setRaisePlan, reset };
 }
 
 export function parseShorthand(raw: string): number | null {
