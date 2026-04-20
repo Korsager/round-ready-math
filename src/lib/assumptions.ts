@@ -9,6 +9,8 @@ export interface FundraiseAssumptions {
   targetIrr: number;
   yearsToExit: number;
   targetMoic: number;
+  revenueMultiple: number;
+  valuationMethod: "auto" | "revenue" | "ownership";
 }
 
 export interface CashflowAssumptions {
@@ -32,6 +34,8 @@ export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
   targetIrr: 30,
   yearsToExit: 5,
   targetMoic: 4,
+  revenueMultiple: 8,
+  valuationMethod: "auto",
 };
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {

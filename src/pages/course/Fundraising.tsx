@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import {
   PieChart as RPieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip,
 } from "recharts";
-import { TrendingUp, Target, BarChart3, PieChart } from "lucide-react";
+import { TrendingUp, Target, BarChart3, PieChart, LineChart, ChevronDown } from "lucide-react";
 import CourseLayout from "@/components/course/CourseLayout";
 import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import { useAssumptions } from "@/lib/assumptions";
+import { computeImpliedIrr } from "@/lib/impliedIrr";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -15,6 +16,7 @@ const fmtUsd = (v: number) => {
 const fmtPct = (d = 1) => (v: number) => `${v.toFixed(d)}%`;
 const fmtNum = (s = "") => (v: number) => `${v.toLocaleString("en-US")}${s}`;
 const fmtMoic = (v: number) => `${v.toFixed(1)}×`;
+const fmtMult = (v: number) => `${v.toFixed(1)}×`;
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 
 export default function CourseFundraising() {
@@ -33,19 +35,36 @@ export default function CourseFundraising() {
     return { postMoney, preMoney, ownership, reqExit, reqMoic, calcIrr };
   }, [f]);
 
+  const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
+
   const ownershipData = [
     { name: "Founders", value: +(100 - f.dilutionPct).toFixed(1) },
     { name: "Investors", value: +f.dilutionPct.toFixed(1) },
   ];
   const PIE_COLORS = ["hsl(217, 91%, 60%)", "hsl(160, 84%, 39%)"];
 
-  const verdictTone = r.calcIrr >= f.targetIrr ? "text-emerald-600" : r.calcIrr >= f.targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
+  const tone = (irr: number) =>
+    irr >= f.targetIrr ? "text-emerald-600" : irr >= f.targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
+  const verdictTone = tone(r.calcIrr);
+  const impliedTone = tone(implied.impliedIrrPct);
+
+  const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
+
+  const narrative = (() => {
+    if (implied.impliedIrrPct >= f.targetIrr) {
+      return `Your forecast supports the IRR investors need. A ${f.targetIrr}% fund hurdle is achievable at your projected trajectory.`;
+    }
+    if (implied.basis === "revenue") {
+      return `At ${f.revenueMultiple}× year-${f.yearsToExit} ARR, your forecast implies ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% investors target. Either growth needs to be higher, exit timing sooner, or the multiple assumption optimistic.`;
+    }
+    return `Pricing on dilution, your claimed ${f.targetMoic}× MOIC delivers ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% target. Investors will ask for a sharper story — what exit buyer pays this, and when?`;
+  })();
 
   return (
     <CourseLayout
       step="fundraising"
       title="3. Fundraising"
-      intro="Connect raise size, dilution, and target return. See exactly what exit value justifies the round."
+      intro="Connect raise size, dilution, and your investor's required return. See whether your forecast actually supports the IRR their fund needs."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
         <section className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 lg:sticky lg:top-32 self-start">
@@ -55,9 +74,45 @@ export default function CourseFundraising() {
           <AssumptionRow label="Dilution" value={f.dilutionPct} format={fmtPct(1)} onChange={(v) => setFundraise({ ...f, dilutionPct: v })} />
           <AssumptionRow label="Pre-money" value={r.preMoney} format={fmtUsd} derived />
           <AssumptionRow label="Post-money" value={r.postMoney} format={fmtUsd} derived />
-          <AssumptionRow label="Target IRR" value={f.targetIrr} format={fmtPct(0)} onChange={(v) => setFundraise({ ...f, targetIrr: v })} />
+          <AssumptionRow
+            label="Target IRR"
+            description="The annualized return your investor needs to deliver to their LPs. Typical VC fund hurdle: 25–35%."
+            value={f.targetIrr}
+            format={fmtPct(0)}
+            onChange={(v) => setFundraise({ ...f, targetIrr: v })}
+          />
           <AssumptionRow label="Years to exit" value={f.yearsToExit} format={fmtNum(" yr")} onChange={(v) => setFundraise({ ...f, yearsToExit: v })} />
           <AssumptionRow label="Target MOIC" value={f.targetMoic} format={fmtMoic} onChange={(v) => setFundraise({ ...f, targetMoic: v })} />
+
+          <div className={revenueDisabled ? "opacity-50 pointer-events-none" : ""}>
+            <AssumptionRow
+              label="Revenue multiple"
+              description="EV/Revenue applied to projected exit-year ARR."
+              value={f.revenueMultiple}
+              format={fmtMult}
+              onChange={(v) => setFundraise({ ...f, revenueMultiple: Math.max(0, v) })}
+            />
+          </div>
+
+          <div className="pt-3 mt-1">
+            <div className="text-[11px] text-[#9CA3AF] mb-1.5">Valuation basis</div>
+            <div className="grid grid-cols-3 gap-1 rounded-md bg-secondary p-0.5">
+              {(["auto", "revenue", "ownership"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setFundraise({ ...f, valuationMethod: m })}
+                  className={`text-[11px] font-medium py-1.5 rounded ${
+                    f.valuationMethod === m ? "bg-white text-[#111827] shadow-sm" : "text-[#6B7280] hover:text-[#111827]"
+                  }`}
+                >
+                  {m === "auto" ? "Auto" : m === "revenue" ? "EV/Rev" : "Ownership"}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-[#9CA3AF] mt-2 leading-snug">
+              Auto picks EV/Revenue if year-{f.yearsToExit} ARR &gt; $500k, else ownership-based. SaaS typically 6–8× revenue; adjust for your sector.
+            </p>
+          </div>
         </section>
 
         <div className="space-y-4 min-w-0">
@@ -83,11 +138,39 @@ export default function CourseFundraising() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <Metric icon={Target} label="Target IRR" value={`${f.targetIrr}%`} sub="investor's hurdle" />
+            <Metric icon={BarChart3} label="MOIC-implied IRR" value={`${r.calcIrr.toFixed(1)}%`} sub={`at ${f.targetMoic}× MOIC`} tone={verdictTone} />
+            <Metric
+              icon={LineChart}
+              label="Forecast-implied IRR"
+              value={`${implied.impliedIrrPct.toFixed(1)}%`}
+              sub={implied.basis === "revenue"
+                ? `${fmtM(implied.impliedExitValue)} exit at ${f.revenueMultiple}× ARR`
+                : `${fmtM(implied.impliedExitValue)} exit (ownership)`}
+              tone={impliedTone}
+            />
             <Metric icon={TrendingUp} label="Required MOIC" value={`${r.reqMoic.toFixed(1)}×`} sub={`for ${f.targetIrr}% IRR`} />
             <Metric icon={Target} label="Required Exit" value={fmtM(r.reqExit)} sub={`in ${f.yearsToExit} years`} />
-            <Metric icon={BarChart3} label="Your IRR" value={`${r.calcIrr.toFixed(1)}%`} sub={`at ${f.targetMoic}× MOIC`} tone={verdictTone} />
             <Metric icon={PieChart} label="Investor Ownership" value={`${(r.ownership * 100).toFixed(1)}%`} sub="post-round" />
+          </div>
+
+          <div className="rounded-xl border border-[#E5E7EB] bg-secondary/40 p-4">
+            <p className="text-[13px] text-[#374151] leading-relaxed">{narrative}</p>
+            <details className="mt-3 group">
+              <summary className="flex items-center gap-1 cursor-pointer text-[12px] font-medium text-[#6B7280] hover:text-[#111827] list-none">
+                <ChevronDown size={12} className="transition-transform group-open:rotate-180" />
+                How we derived this
+              </summary>
+              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-[#374151]">
+                <dt className="text-muted-foreground">Year-{f.yearsToExit} ARR</dt><dd className="text-right tabular-nums">{fmtUsd(implied.arrAtExit)}</dd>
+                <dt className="text-muted-foreground">Valuation basis</dt><dd className="text-right">{implied.basis === "revenue" ? "EV/Revenue" : "Ownership"}</dd>
+                <dt className="text-muted-foreground">Implied exit value</dt><dd className="text-right tabular-nums">{fmtM(implied.impliedExitValue)}</dd>
+                <dt className="text-muted-foreground">Investor proceeds</dt><dd className="text-right tabular-nums">{fmtM(implied.investorProceedsAtExit)}</dd>
+                <dt className="text-muted-foreground">Implied MOIC</dt><dd className="text-right tabular-nums">{implied.impliedMoic.toFixed(1)}×</dd>
+              </dl>
+              <p className="text-[11px] text-muted-foreground italic mt-2">{implied.reasoning}</p>
+            </details>
           </div>
 
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-4">
