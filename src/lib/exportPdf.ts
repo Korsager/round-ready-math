@@ -3,6 +3,7 @@ import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario } from "./forecast";
 import { loadPricingStrategy, type PricingStrategy } from "./pricingStrategy";
+import { computeImpliedIrr } from "./impliedIrr";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -26,6 +27,7 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   const reqExit = ownership > 0 ? reqReturn / ownership : 0;
   const calcIrr = a.fundraise.yearsToExit > 0 && a.fundraise.targetMoic > 0
     ? (Math.pow(a.fundraise.targetMoic, 1 / a.fundraise.yearsToExit) - 1) * 100 : 0;
+  const implied = computeImpliedIrr(a);
 
   const base = runScenario(a.forecast, "base");
   const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
@@ -115,11 +117,18 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Years to exit", `${a.fundraise.yearsToExit} yr`);
   row("Target MOIC", `${a.fundraise.targetMoic}×`);
   row("Required exit value", fmtM(reqExit));
-  row("Calculated IRR", `${calcIrr.toFixed(1)}%`);
+  row("Calculated IRR (MOIC-implied)", `${calcIrr.toFixed(1)}%`);
+  row("Forecast-implied IRR", `${implied.impliedIrrPct.toFixed(1)}% (${implied.basis === "revenue" ? `${a.fundraise.revenueMultiple}× ARR` : "ownership-based"})`);
+  row("Year-N ARR (projected)", fmtUsd(implied.arrAtExit));
+  row("Implied exit value", fmtM(implied.impliedExitValue));
   y += 6;
-  para(calcIrr >= a.fundraise.targetIrr
-    ? `Verdict: Strong. Your ${a.fundraise.targetMoic}× MOIC beats the ${a.fundraise.targetIrr}% IRR target.`
-    : `Verdict: Below target. IRR ${calcIrr.toFixed(1)}% vs ${a.fundraise.targetIrr}% target — aim for a higher exit or shorter timeline.`);
+  if (implied.impliedIrrPct >= a.fundraise.targetIrr) {
+    para(`Verdict: Aligned. Your forecast supports ${implied.impliedIrrPct.toFixed(1)}% IRR, above the ${a.fundraise.targetIrr}% investors require.`);
+  } else if (calcIrr >= a.fundraise.targetIrr) {
+    para(`Verdict: Gap. Your ${a.fundraise.targetMoic}× MOIC claim implies ${calcIrr.toFixed(1)}% IRR, but your forecast only supports ${implied.impliedIrrPct.toFixed(1)}%. Investors will ask what drives the difference.`);
+  } else {
+    para(`Verdict: Below target. Both MOIC-claimed (${calcIrr.toFixed(1)}%) and forecast-implied (${implied.impliedIrrPct.toFixed(1)}%) IRR fall under the ${a.fundraise.targetIrr}% target.`);
+  }
   y += 12;
 
   // Revenue
