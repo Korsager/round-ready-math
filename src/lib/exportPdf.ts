@@ -82,6 +82,88 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   para("This report covers your pricing, revenue forecast, fundraising math, and cashflow runway as configured in the Founders Toolkit.");
   y += 10;
 
+  // Plan summary
+  doc.addPage(); y = M;
+  title("Plan summary");
+  para(summary.planSentence);
+  y += 8;
+
+  // 3x2 metric grid
+  const cols = 3;
+  const cellGap = 12;
+  const cellW = (W - M * 2 - cellGap * (cols - 1)) / cols;
+  const cellH = 60;
+  const metrics: { label: string; value: string; sub?: string }[] = [
+    {
+      label: "RUNWAY TODAY",
+      value: summary.runwayMonth !== null ? `${summary.runwayMonth} mo` : `${summary.horizonMonths}+ mo`,
+      sub: summary.runwayMonth !== null ? "until cash hits zero" : "through horizon",
+    },
+    {
+      label: "RAISE BY",
+      value: `Month ${summary.monthsUntilRaise}`,
+      sub: summary.bufferBeforeZero !== null ? `${Math.max(0, summary.bufferBeforeZero)} mo buffer` : "comfortable",
+    },
+    {
+      label: "RUNWAY AFTER RAISE",
+      value: summary.monthsRunwayAfterRaise !== null ? `${summary.monthsRunwayAfterRaise} mo` : "—",
+      sub: `${fmtM(summary.raise)} round`,
+    },
+    {
+      label: `MRR TODAY → YR ${summary.yearsToExit}`,
+      value: `${fmtM(summary.startingMRR)} → ${fmtM(summary.endingMRR)}`,
+      sub: `${summary.mrrMultiple.toFixed(1)}× growth`,
+    },
+    {
+      label: "REQUIRED GROWTH",
+      value: `${summary.requiredMonthlyGrowth.toFixed(2)}%/mo`,
+      sub: `you plan ${summary.actualMonthlyGrowth.toFixed(2)}%/mo`,
+    },
+    {
+      label: "IMPLIED EXIT VALUE",
+      value: fmtM(summary.impliedExitValue),
+      sub: `at ${summary.revenueMultiple}× ARR`,
+    },
+  ];
+  for (let i = 0; i < metrics.length; i++) {
+    const col = i % cols;
+    const rowIdx = Math.floor(i / cols);
+    if (col === 0 && rowIdx > 0) y += cellH + cellGap;
+    const x = M + col * (cellW + cellGap);
+    const cy = y;
+    doc.setDrawColor(229, 231, 235);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(x, cy, cellW, cellH, 6, 6, "FD");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(107, 114, 128);
+    doc.text(metrics[i].label, x + 10, cy + 14);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(17, 24, 39);
+    doc.text(metrics[i].value, x + 10, cy + 32);
+    if (metrics[i].sub) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(107, 114, 128);
+      doc.text(metrics[i].sub!, x + 10, cy + 48);
+    }
+  }
+  y += cellH + 20;
+
+  // Verdict bar
+  const verdictColors: Record<typeof summary.verdict, [number, number, number]> = {
+    green: [16, 185, 129],
+    amber: [217, 119, 6],
+    red: [220, 38, 38],
+  };
+  const [vr, vg, vb] = verdictColors[summary.verdict];
+  ensureRoom(60);
+  doc.setDrawColor(vr, vg, vb);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(M, y, W - M * 2, 50, 6, 6, "FD");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(vr, vg, vb);
+  const verdictLabel = summary.verdict === "green" ? "ON TRACK" : summary.verdict === "amber" ? "TIGHT" : "OFF TRACK";
+  doc.text(verdictLabel, M + 14, y + 18);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(31, 41, 55);
+  const vLines = doc.splitTextToSize(summary.verdictSentence, W - M * 2 - 28);
+  doc.text(vLines, M + 14, y + 32);
+  y += 60;
+
   // Pricing strategy
   title("Pricing strategy");
   labeledBlock("Business model", pricing.context.businessModel);
