@@ -80,7 +80,6 @@ export default function CoursePricing() {
     }
   };
 
-  const next = () => setStep((n) => Math.min(n + 1, STEPS.length - 1));
   const prev = () => setStep((n) => Math.max(n - 1, 0));
 
   const navigate = useNavigate();
@@ -98,18 +97,13 @@ export default function CoursePricing() {
     if (step === 4) seedFromPricing();
     setStep((n) => Math.min(n + 1, STEPS.length - 1));
   };
-  // Going forward past the final step navigates to Revenue.
-  const finish = () => {
-    seedFromPricing();
-    navigate("/course/revenue");
-  };
 
   return (
     <CourseLayout
       step="pricing"
       title="1. Pricing"
       intro="Lock in your value metric, model, tiers, and price points. Strong pricing is the single biggest lever on revenue — get this right before forecasting."
-      onNextClick={() => { seedFromPricing(); }}
+      onNext={() => { seedFromPricing(); }}
     >
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <section className="grid lg:grid-cols-[260px_1fr] gap-6 p-4 sm:p-6">
