@@ -6,6 +6,7 @@ import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary, fmtPlanMoney } from "./planSummary";
 import { monthCalendar, planStartLabel } from "./dateAnchor";
+import { computePlanNarrative, type LinkStatus } from "./planNarrative";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -80,6 +81,55 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     const verdictColor = summary.verdict === "green" ? "059669" : summary.verdict === "amber" ? "D97706" : "DC2626";
     ps.addText(summary.verdictSentence, { x: 0.7, y: 6.55, w: 12, h: 0.6, fontSize: 13, italic: true, color: verdictColor, fontFace: "Calibri", bold: true });
   }
+
+  // How it all connects (narrative slide)
+  {
+    const narrative = computePlanNarrative(a, summary);
+    const ns = pres.addSlide();
+    ns.background = { color: "FFFFFF" };
+    ns.addShape(pres.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: NAVY } });
+    ns.addText("SYNTHESIS", { x: 0.7, y: 0.4, w: 12, h: 0.35, fontSize: 12, bold: true, color: ACCENT, charSpacing: 4 });
+    ns.addText("How it all connects", { x: 0.7, y: 0.75, w: 12, h: 0.6, fontSize: 30, bold: true, color: INK, fontFace: "Calibri" });
+    ns.addText(narrative.openingSentence, { x: 0.7, y: 1.35, w: 12, h: 0.4, fontSize: 13, italic: true, color: MUTED, fontFace: "Calibri" });
+
+    const statusHex: Record<LinkStatus, string> = { ok: "059669", warn: "D97706", fail: "DC2626" };
+    const rowH = 0.92;
+    const rowsStartY = 1.85;
+    narrative.links.forEach((link, i) => {
+      const y = rowsStartY + i * (rowH + 0.05);
+      // Step badge
+      ns.addShape(pres.ShapeType.ellipse, {
+        x: 0.7, y: y + 0.1, w: 0.7, h: 0.7,
+        fill: { color: statusHex[link.status] }, line: { color: statusHex[link.status] },
+      });
+      ns.addText(`${i + 1}`, {
+        x: 0.7, y: y + 0.1, w: 0.7, h: 0.7,
+        fontSize: 22, bold: true, color: "FFFFFF", align: "center", valign: "middle", fontFace: "Calibri",
+      });
+      // Title (middle)
+      ns.addText(link.title, {
+        x: 1.55, y: y + 0.05, w: 4.2, h: 0.85,
+        fontSize: 14, bold: true, color: NAVY, fontFace: "Calibri", valign: "middle",
+      });
+      // Sentence + detail (right)
+      const richText: { text: string; options: any }[] = [
+        { text: link.sentence, options: { fontSize: 12, color: INK, breakLine: !!link.detail } },
+      ];
+      if (link.detail) {
+        richText.push({ text: link.detail, options: { fontSize: 10, color: MUTED, italic: true } });
+      }
+      ns.addText(richText, {
+        x: 5.85, y: y + 0.05, w: 7.2, h: 0.85,
+        fontFace: "Calibri", valign: "middle", paraSpaceAfter: 2,
+      });
+    });
+
+    ns.addText(narrative.closingSentence, {
+      x: 0.7, y: 6.85, w: 12, h: 0.4,
+      fontSize: 12, italic: true, bold: true, color: ACCENT, fontFace: "Calibri",
+    });
+  }
+
   const sectionSlide = (kicker: string, title: string, stats: { label: string; value: string }[], note: string) => {
     const s = pres.addSlide();
     s.background = { color: "FFFFFF" };
