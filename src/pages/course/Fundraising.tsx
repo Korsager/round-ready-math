@@ -39,6 +39,13 @@ export default function CourseFundraising() {
   }, [f]);
 
   const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
+  const plan = useMemo(() => computePlanSummary(assumptions), [assumptions]);
+  const runwayState: "red" | "amber" | "green" =
+    plan.runwayMonth !== null && plan.runwayMonth <= plan.monthsUntilRaise
+      ? "red"
+      : plan.monthsRunwayAfterRaise !== null && plan.monthsRunwayAfterRaise < 12
+        ? "amber"
+        : "green";
   const reqGrowth = useMemo(
     () => requiredMonthlyGrowth(
       assumptions.forecast.startingMRR,
