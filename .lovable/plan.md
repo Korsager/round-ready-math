@@ -1,34 +1,45 @@
 
 
-## Status: mostly already fixed
+## Goal
+Make the Fundraising step aware of runway. A user sizing a raise should immediately see whether that raise (a) lands before cash runs out, and (b) buys enough months of runway after it lands.
 
-The earlier refactor already removed `fundraiseAmount` from `CashflowAssumptions`, made it a runtime-only field on `CashflowInputs`, and strips legacy values on both load paths (`assumptions.ts` localStorage loader + `UploadJson.tsx` JSON import). All consumers — `Cashflow.tsx`, `Export.tsx`, `exportPdf.ts`, `exportPptx.ts`, `planSummary.ts` — now derive the inflow from `assumptions.fundraise.raise`.
-
-So the duplicated-state bug is gone. But two small loose ends remain.
-
-## Remaining gaps to close
-
-### 1. Stale localStorage isn't rewritten until the user edits something
-The loader strips `cashflow.fundraiseAmount` in memory, but doesn't immediately re-`save()` the cleaned object. Users who exported their JSON before touching anything will still get the legacy field. Fix: in `assumptions.ts`, after `load()`, if the parsed payload contained `fundraiseAmount`, write the cleaned version back to localStorage on initialization.
-
-### 2. JSON export shape isn't documented or tested
-Add a tiny unit test asserting that `JSON.stringify(current.cashflow)` does not contain `fundraiseAmount`, so any future regression that re-introduces the field is caught.
+## Approach
+The numbers already exist — `computePlanSummary()` returns `runwayMonth`, `monthsUntilRaise`, `bufferBeforeZero`, and `monthsRunwayAfterRaise` from the cashflow simulation. The Fundraising page just doesn't read them. Add a single "Runway check" panel to the page that consumes the plan summary and reports verdicts in plain language.
 
 ## Changes
 
-### `src/lib/assumptions.ts`
-- In the module-init block (after `let current: Assumptions = load();`), check whether the raw localStorage payload had `cashflow.fundraiseAmount`. If yes, call `save(current)` once to rewrite the cleaned shape. Implement by having `load()` return a `{ value, hadLegacyFundraiseAmount }` tuple internally, or simpler: re-read localStorage once at module init, detect the legacy key, and call `save(current)` if found.
+### 1. `src/pages/course/Fundraising.tsx`
+Add a `RunwayCheck` panel rendered between the existing narrative box and the IRR sensitivity heatmap. It calls `computePlanSummary(assumptions)` (already a pure, fast function) and renders three states:
 
-### `src/test/cashflowShape.test.ts` (new)
-- Test 1: `DEFAULT_CASHFLOW` has no `fundraiseAmount` property.
-- Test 2: Round-trip — parse a fixture object that has `cashflow.fundraiseAmount: 999`, run it through the same merge logic used by `UploadJson.mergeAssumptions`, and assert the result's `cashflow` has no `fundraiseAmount`.
+**State A — Raise lands too late (`runwayMonth !== null && runwayMonth <= monthsUntilRaise`)**
+Red banner. Copy: "You run out of cash in month {runwayMonth} but the raise isn't planned until month {monthsUntilRaise}. Either raise earlier, cut burn, or extend the bridge." Includes a small "Adjust on Cashflow step →" link.
 
-## What this does NOT do
-- No changes to `CashflowInputs` — it correctly keeps `fundraiseAmount` as a runtime-only field passed by callers.
-- No changes to the UI — the "derived" label on the Fundraise amount row is already correct.
-- No migration of in-flight exported JSON files in users' downloads folder — those are out of our reach; the import path already strips the field.
+**State B — Raise lands in time but buys too little runway (`monthsRunwayAfterRaise !== null && monthsRunwayAfterRaise < 12`)**
+Amber banner. Copy: "{fmtMoney(raise)} buys {monthsRunwayAfterRaise} months after closing. Most investors expect 18–24 months of post-round runway. Consider raising more or trimming opex." Shows a derived "What 18 months would cost" line: `raise × 18 / monthsRunwayAfterRaise` rounded.
+
+**State C — Healthy (raise lands in time, ≥18 months post-round runway)**
+Green check. Copy: "{fmtMoney(raise)} funds {monthsRunwayAfterRaise} months of post-round runway. Cash zero pushed to month {runwayMonth ?? horizon+}."
+
+Below the verdict, always show a compact 3-stat strip:
+- Current runway: `{runwayMonth ?? horizonMonths+} mo`
+- Raise lands: `month {monthsUntilRaise}`
+- Post-round runway: `{monthsRunwayAfterRaise ?? "—"} mo`
+
+### 2. Verdict integration
+The page currently has two verdict tones — `verdictTone` (MOIC-implied IRR) and `impliedTone` (forecast-implied IRR). Neither reflects funding adequacy. Add a third consideration: if the runway check is red, prepend a one-liner to the existing `narrative` block: "Funding gap: this raise doesn't cover the runway needed to execute the plan." This keeps the existing IRR narrative intact but flags the inconsistency upfront.
+
+### 3. No state changes
+- No new fields in `assumptions.ts`
+- No changes to `planSummary.ts` (it already returns everything needed)
+- No changes to `cashflow.ts`
+
+The Fundraising page becomes a read-only consumer of plan summary for the runway numbers, same way the Cashflow page already is.
 
 ## Files touched
-- `src/lib/assumptions.ts` (one-shot rewrite of stale localStorage)
-- `src/test/cashflowShape.test.ts` (new guardrail test)
+- `src/pages/course/Fundraising.tsx` (add `RunwayCheck` component + import `computePlanSummary`, weave funding-gap line into narrative)
+
+## What this does NOT do
+- Doesn't auto-suggest a "right" raise size — just flags the inconsistency. Founders pick the trade-off (raise more vs cut burn vs shorter bridge).
+- Doesn't move the `monthsUntilRaise` input onto the Fundraising page. It stays on Cashflow where it belongs; the Fundraising panel includes a link back.
+- Doesn't change how IRR/MOIC verdicts are computed. The runway check is an additional, orthogonal signal.
 
