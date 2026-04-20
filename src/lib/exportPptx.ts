@@ -31,7 +31,7 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
   const calcIrr = a.fundraise.yearsToExit > 0 && a.fundraise.targetMoic > 0
     ? (Math.pow(a.fundraise.targetMoic, 1 / a.fundraise.yearsToExit) - 1) * 100 : 0;
   const base = runScenario(a.forecast, "base");
-  const cf = simulateCashflow({ ...a.cashflow, forecast: a.forecast }, 36);
+  const cf = simulateCashflow({ ...a.cashflow, fundraiseAmount: a.fundraise.raise, forecast: a.forecast }, 36);
 
   // Cover
   const cover = pres.addSlide();

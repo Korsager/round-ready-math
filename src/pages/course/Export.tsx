@@ -25,7 +25,7 @@ export default function CourseExport() {
     bull: runScenario(assumptions.forecast, "bull"),
     base: runScenario(assumptions.forecast, "base"),
     bear: runScenario(assumptions.forecast, "bear"),
-    cf: simulateCashflow({ ...assumptions.cashflow, forecast: assumptions.forecast }, 36),
+    cf: simulateCashflow({ ...assumptions.cashflow, fundraiseAmount: assumptions.fundraise.raise, forecast: assumptions.forecast }, 36),
   }), [assumptions]);
 
   const captureCharts = async () => {
