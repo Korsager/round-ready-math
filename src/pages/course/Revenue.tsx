@@ -1,11 +1,15 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Sparkles, AlertTriangle, X } from "lucide-react";
 import CourseLayout from "@/components/course/CourseLayout";
 import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import StatCards from "@/components/forecast/StatCards";
 import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
+import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
+import { DEFAULT_INPUTS } from "@/lib/presets";
+import { deriveRevenueFromPricing, loadPricingStrategy } from "@/lib/pricingStrategy";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -15,8 +19,52 @@ const fmtPct = (digits = 1) => (v: number) => `${v.toFixed(digits)}%`;
 const fmtNum = (suffix = "") => (v: number) => `${v.toLocaleString("en-US")}${suffix}`;
 
 export default function CourseRevenue() {
-  const { assumptions, setForecast } = useAssumptions();
-  const { forecast } = assumptions;
+  const { assumptions, setForecast, seedForecast, clearForecastEditedFlag } = useAssumptions();
+  const { forecast, forecastManuallyEdited } = assumptions;
+
+  // Recompute pricing-derived numbers on every render (cheap; reads localStorage once).
+  const [pricing] = useState(() => loadPricingStrategy());
+  const derivedFromPricing = useMemo(() => deriveRevenueFromPricing(pricing), [pricing]);
+  const tierCount = derivedFromPricing.perTier.filter((t) => t.mrrContribution > 0).length;
+
+  // Fallback seed on first mount: if forecast is untouched defaults AND pricing yields a value, seed.
+  const seededOnceRef = useRef(false);
+  useEffect(() => {
+    if (seededOnceRef.current) return;
+    seededOnceRef.current = true;
+    const isUntouched =
+      !forecastManuallyEdited &&
+      forecast.startingMRR === DEFAULT_INPUTS.startingMRR &&
+      forecast.monthlyNewBookings === DEFAULT_INPUTS.monthlyNewBookings;
+    if (isUntouched && derivedFromPricing.startingMRR > 0) {
+      seedForecast({
+        ...forecast,
+        startingMRR: derivedFromPricing.startingMRR,
+        monthlyNewBookings: derivedFromPricing.monthlyNewBookings,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const isStale =
+    forecastManuallyEdited &&
+    derivedFromPricing.startingMRR > 0 &&
+    Math.abs(derivedFromPricing.startingMRR - forecast.startingMRR) > 1;
+  const isFreshSeed =
+    !forecastManuallyEdited &&
+    derivedFromPricing.startingMRR > 0 &&
+    Math.abs(derivedFromPricing.startingMRR - forecast.startingMRR) <= 1;
+
+  const reseed = () => {
+    seedForecast({
+      ...forecast,
+      startingMRR: derivedFromPricing.startingMRR,
+      monthlyNewBookings: derivedFromPricing.monthlyNewBookings,
+    });
+    clearForecastEditedFlag();
+    setBannerDismissed(false);
+  };
 
   const { bull, base, bear } = useMemo(() => ({
     bull: runScenario(forecast, "bull"),
@@ -65,6 +113,33 @@ export default function CourseRevenue() {
         </section>
 
         <div className="space-y-4 min-w-0">
+          {!bannerDismissed && isFreshSeed && (
+            <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <Sparkles size={16} className="text-primary mt-0.5 shrink-0" />
+              <div className="flex-1 text-[13px] text-foreground">
+                <strong>Seeded from your pricing:</strong> {fmtUsd(derivedFromPricing.startingMRR)} MRR across {tierCount} tier{tierCount === 1 ? "" : "s"}. Edit below if your actuals differ.
+              </div>
+              <button onClick={() => setBannerDismissed(true)} aria-label="Dismiss" className="text-muted-foreground hover:text-foreground">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          {!bannerDismissed && isStale && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1 text-[13px] text-amber-900">
+                Your pricing now implies <strong>{fmtUsd(derivedFromPricing.startingMRR)} MRR</strong> but you're using <strong>{fmtUsd(forecast.startingMRR)}</strong>.
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-[12px]" onClick={reseed}>Re-seed from pricing</Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => setBannerDismissed(true)}>Keep my numbers</Button>
+                </div>
+              </div>
+              <button onClick={() => setBannerDismissed(true)} aria-label="Dismiss" className="text-amber-700 hover:text-amber-900">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           <StatCards startingMRR={forecast.startingMRR} bull={bull} base={base} bear={bear} />
           <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={forecast.startingMRR} />
           <MatrixChart ref={matrixRef} inputs={forecast} onCellClick={onCellClick} />
