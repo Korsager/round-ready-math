@@ -1,45 +1,44 @@
 
 
 ## Goal
-Make the Fundraising step aware of runway. A user sizing a raise should immediately see whether that raise (a) lands before cash runs out, and (b) buys enough months of runway after it lands.
+Surface a "valuation efficiency" stat on the Cashflow step so founders can see what each month of runway costs in dilution terms — connecting the Fundraising round (post-money, ownership sold) to the Cashflow plan (months of runway bought).
 
 ## Approach
-The numbers already exist — `computePlanSummary()` returns `runwayMonth`, `monthsUntilRaise`, `bufferBeforeZero`, and `monthsRunwayAfterRaise` from the cashflow simulation. The Fundraising page just doesn't read them. Add a single "Runway check" panel to the page that consumes the plan summary and reports verdicts in plain language.
+All inputs already exist:
+- `assumptions.fundraise.raise`, `dilutionPct` → post-money = raise / (dilutionPct/100)
+- `summary.cfBase.monthsRunwayAfterRaise` → months bought by the round
+
+Add a single derived metric **"Valuation per month of runway"** = `postMoney / monthsRunwayAfterRaise`, plus the dilution-cost framing **"Dilution per month"** = `dilutionPct / monthsRunwayAfterRaise`. Render as a new card in the existing `PlanSummary` strip (and as a small line in `RunwayCards`) so it's visible the moment the user lands on Cashflow.
 
 ## Changes
 
-### 1. `src/pages/course/Fundraising.tsx`
-Add a `RunwayCheck` panel rendered between the existing narrative box and the IRR sensitivity heatmap. It calls `computePlanSummary(assumptions)` (already a pure, fast function) and renders three states:
+### 1. `src/lib/planSummary.ts`
+Extend the returned summary with three derived fields (read-only, computed from existing inputs — no new state):
+- `postMoney: number` — `raise / (dilutionPct/100)`, or 0 if dilutionPct is 0
+- `valuationPerRunwayMonth: number | null` — `postMoney / monthsRunwayAfterRaise`, null if runway is null/0
+- `dilutionPerRunwayMonth: number | null` — `dilutionPct / monthsRunwayAfterRaise`, null if runway is null/0
 
-**State A — Raise lands too late (`runwayMonth !== null && runwayMonth <= monthsUntilRaise`)**
-Red banner. Copy: "You run out of cash in month {runwayMonth} but the raise isn't planned until month {monthsUntilRaise}. Either raise earlier, cut burn, or extend the bridge." Includes a small "Adjust on Cashflow step →" link.
+### 2. `src/components/cashflow/PlanSummary.tsx`
+Add one stat card to the existing summary strip:
+- **Label**: "Cost of runway"
+- **Primary value**: `$X.XM per month` (post-money ÷ months bought)
+- **Secondary line**: `{dilutionPerMonth.toFixed(2)}% dilution / mo`
+- Tooltip: "How much company value (and ownership) each additional month of runway costs at this round's terms."
+- Hidden gracefully when `monthsRunwayAfterRaise` is null (pre-raise runway already gone).
 
-**State B — Raise lands in time but buys too little runway (`monthsRunwayAfterRaise !== null && monthsRunwayAfterRaise < 12`)**
-Amber banner. Copy: "{fmtMoney(raise)} buys {monthsRunwayAfterRaise} months after closing. Most investors expect 18–24 months of post-round runway. Consider raising more or trimming opex." Shows a derived "What 18 months would cost" line: `raise × 18 / monthsRunwayAfterRaise` rounded.
+### 3. `src/pages/course/Fundraising.tsx`
+Mirror the same line under the existing post-money display in the results dashboard so the connection is visible from both ends:
+- One small caption: "Buys {monthsRunwayAfterRaise} months → ${valuationPerMonth}M / mo of runway"
 
-**State C — Healthy (raise lands in time, ≥18 months post-round runway)**
-Green check. Copy: "{fmtMoney(raise)} funds {monthsRunwayAfterRaise} months of post-round runway. Cash zero pushed to month {runwayMonth ?? horizon+}."
-
-Below the verdict, always show a compact 3-stat strip:
-- Current runway: `{runwayMonth ?? horizonMonths+} mo`
-- Raise lands: `month {monthsUntilRaise}`
-- Post-round runway: `{monthsRunwayAfterRaise ?? "—"} mo`
-
-### 2. Verdict integration
-The page currently has two verdict tones — `verdictTone` (MOIC-implied IRR) and `impliedTone` (forecast-implied IRR). Neither reflects funding adequacy. Add a third consideration: if the runway check is red, prepend a one-liner to the existing `narrative` block: "Funding gap: this raise doesn't cover the runway needed to execute the plan." This keeps the existing IRR narrative intact but flags the inconsistency upfront.
-
-### 3. No state changes
-- No new fields in `assumptions.ts`
-- No changes to `planSummary.ts` (it already returns everything needed)
-- No changes to `cashflow.ts`
-
-The Fundraising page becomes a read-only consumer of plan summary for the runway numbers, same way the Cashflow page already is.
-
-## Files touched
-- `src/pages/course/Fundraising.tsx` (add `RunwayCheck` component + import `computePlanSummary`, weave funding-gap line into narrative)
+No changes to inputs, no new fields in `assumptions.ts`, no schema changes.
 
 ## What this does NOT do
-- Doesn't auto-suggest a "right" raise size — just flags the inconsistency. Founders pick the trade-off (raise more vs cut burn vs shorter bridge).
-- Doesn't move the `monthsUntilRaise` input onto the Fundraising page. It stays on Cashflow where it belongs; the Fundraising panel includes a link back.
-- Doesn't change how IRR/MOIC verdicts are computed. The runway check is an additional, orthogonal signal.
+- Doesn't judge whether the cost-per-month is "good" or "bad" — that's market-dependent. Just exposes the number.
+- Doesn't change `simulateCashflow` or any forecast math.
+- Doesn't introduce a new chart — single derived stat in two existing surfaces.
+
+## Files touched
+- `src/lib/planSummary.ts` (add 3 derived fields)
+- `src/components/cashflow/PlanSummary.tsx` (new "Cost of runway" card)
+- `src/pages/course/Fundraising.tsx` (caption under post-money result)
 
