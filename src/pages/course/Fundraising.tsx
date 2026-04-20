@@ -23,7 +23,7 @@ const fmtMult = (v: number) => `${v.toFixed(1)}×`;
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 
 export default function CourseFundraising() {
-  const { assumptions, setFundraise } = useAssumptions();
+  const { assumptions, setFundraise, setCashflow } = useAssumptions();
   const f = assumptions.fundraise;
 
   const r = useMemo(() => {
