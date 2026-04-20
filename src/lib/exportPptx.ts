@@ -5,6 +5,7 @@ import { runScenario } from "./forecast";
 import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary, fmtPlanMoney } from "./planSummary";
+import { monthCalendar, planStartLabel } from "./dateAnchor";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -39,11 +40,15 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
   const implied = computeImpliedIrr(a);
 
   // Cover
+  const startLabel = planStartLabel(a.planStartDate);
+  const cal = (m: number) => monthCalendar(a.planStartDate, m);
   const cover = pres.addSlide();
   cover.background = { color: NAVY };
   cover.addText("Fundraise Plan", { x: 0.6, y: 2.6, w: 12, h: 1.0, fontSize: 54, bold: true, color: "FFFFFF", fontFace: "Calibri" });
   cover.addText("Pricing · Revenue · Fundraising · Cashflow", { x: 0.6, y: 3.7, w: 12, h: 0.5, fontSize: 20, color: ICE, fontFace: "Calibri" });
-  cover.addText(new Date().toLocaleDateString(), { x: 0.6, y: 6.6, w: 12, h: 0.4, fontSize: 12, color: ICE });
+  cover.addText(`Plan start: ${startLabel}`, { x: 0.6, y: 4.3, w: 12, h: 0.4, fontSize: 14, color: ICE, fontFace: "Calibri" });
+  cover.addText(`All "month N" labels are measured from ${startLabel}.`, { x: 0.6, y: 4.7, w: 12, h: 0.4, fontSize: 12, color: ICE, italic: true, fontFace: "Calibri" });
+  cover.addText(`Generated ${new Date().toLocaleDateString()}`, { x: 0.6, y: 6.6, w: 12, h: 0.4, fontSize: 12, color: ICE });
 
   // Plan summary slide (right after cover)
   {
@@ -54,8 +59,8 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     ps.addText(summary.planSentence, { x: 0.7, y: 0.85, w: 12, h: 1.6, fontSize: 26, bold: true, color: INK, fontFace: "Calibri" });
 
     const psStats: { label: string; value: string }[] = [
-      { label: "Runway today", value: summary.runwayMonth !== null ? `${summary.runwayMonth} mo` : `${summary.horizonMonths}+ mo` },
-      { label: "Raise by", value: `Mo ${summary.monthsUntilRaise}` },
+      { label: "Runway today", value: summary.runwayMonth !== null ? `${summary.runwayMonth} mo (zero ${cal(summary.runwayMonth)})` : `${summary.horizonMonths}+ mo` },
+      { label: "Raise by", value: `Mo ${summary.monthsUntilRaise} (${cal(summary.monthsUntilRaise)})` },
       { label: "Runway after raise", value: summary.monthsRunwayAfterRaise !== null ? `${summary.monthsRunwayAfterRaise} mo` : "—" },
       { label: `MRR today → yr ${summary.yearsToExit}`, value: `${fmtPlanMoney(summary.startingMRR)} → ${fmtPlanMoney(summary.endingMRR)}` },
       { label: "Required growth", value: `${summary.requiredMonthlyGrowth.toFixed(2)}%/mo` },
@@ -202,13 +207,13 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
   sectionSlide("Step 4", "Cashflow & runway", [
     { label: "Starting cash", value: fmtUsd(a.cashflow.startingCash) },
     { label: "Starting burn", value: `${fmtUsd(a.cashflow.startingBurn)}/mo` },
-    { label: "Runway hits zero", value: cf.runwayMonth ? `Mo ${cf.runwayMonth}` : ">36 mo" },
+    { label: "Runway hits zero", value: cf.runwayMonth ? `Mo ${cf.runwayMonth} (${cal(cf.runwayMonth)})` : ">36 mo" },
     { label: "After raise", value: cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo` },
-    { label: "Break-even", value: cf.breakEvenMonth ? `Mo ${cf.breakEvenMonth}` : "Not in 36 mo" },
+    { label: "Break-even", value: cf.breakEvenMonth ? `Mo ${cf.breakEvenMonth} (${cal(cf.breakEvenMonth)})` : "Not in 36 mo" },
     { label: "Burn multiple", value: isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞" },
     { label: "Raise size", value: fmtM(a.fundraise.raise) },
-    { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise}` },
-  ], `Healthy burn multiple is < 2×. Above signals inefficient growth.`);
+    { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise} (${cal(a.cashflow.monthsUntilRaise)})` },
+  ], `Healthy burn multiple is < 2×. Above signals inefficient growth. Plan start: ${startLabel}.`);
 
   if (charts?.cashflowImg) {
     const cs = pres.addSlide();

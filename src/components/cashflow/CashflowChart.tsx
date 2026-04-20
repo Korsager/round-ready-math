@@ -2,13 +2,15 @@ import { forwardRef } from "react";
 import { ComposedChart, Area, Bar, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import type { CashflowResult } from "@/lib/cashflow";
 import { fmt } from "@/lib/format";
+import { monthCalendar } from "@/lib/dateAnchor";
 
 interface Props {
   result: CashflowResult;
   monthsUntilRaise: number;
+  planStartDate: string;
 }
 
-const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRaise }, ref) => {
+const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRaise, planStartDate }, ref) => {
   const data = result.months.map((m) => ({
     month: m.month,
     cash: Math.round(m.cashBalance),
@@ -35,7 +37,7 @@ const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRa
             <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => fmt(v)} />
             <Tooltip
               formatter={(value: number, name: string) => [fmt(value), name]}
-              labelFormatter={(l) => `Month ${l}`}
+              labelFormatter={(l) => `Month ${l} (${monthCalendar(planStartDate, Number(l))})`}
               contentStyle={{ fontSize: 12, borderRadius: 8 }}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />

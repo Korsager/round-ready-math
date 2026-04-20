@@ -1,5 +1,7 @@
 import type { PlanSummary } from "@/lib/planSummary";
 import { fmtPlanMoney } from "@/lib/planSummary";
+import { useAssumptions } from "@/lib/assumptions";
+import { monthCalendar } from "@/lib/dateAnchor";
 
 interface Props {
   summary: PlanSummary;
@@ -22,6 +24,8 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub?:
 }
 
 export default function PlanSummary({ summary: s }: Props) {
+  const { assumptions } = useAssumptions();
+  const planStart = assumptions.planStartDate;
   const v = verdictStyles[s.verdict];
   const runwayLabel = s.runwayMonth !== null ? `${s.runwayMonth} mo` : `${s.horizonMonths}+ mo`;
   const afterRaiseLabel = s.monthsRunwayAfterRaise !== null ? `${s.monthsRunwayAfterRaise} mo` : "—";
@@ -42,8 +46,8 @@ export default function PlanSummary({ summary: s }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <MetricCard label="Runway today" value={runwayLabel} sub={s.runwayMonth !== null ? "until cash hits zero" : "through horizon"} />
-        <MetricCard label="Raise by" value={`Month ${s.monthsUntilRaise}`} sub={s.bufferBeforeZero !== null ? `${Math.max(0, s.bufferBeforeZero)} mo buffer` : "comfortable"} />
+        <MetricCard label="Runway today" value={runwayLabel} sub={s.runwayMonth !== null ? `cash zero ${monthCalendar(planStart, s.runwayMonth)}` : "through horizon"} />
+        <MetricCard label="Raise by" value={`Month ${s.monthsUntilRaise}`} sub={`${monthCalendar(planStart, s.monthsUntilRaise)}${s.bufferBeforeZero !== null ? ` · ${Math.max(0, s.bufferBeforeZero)} mo buffer` : ""}`} />
         <MetricCard label="Runway after raise" value={afterRaiseLabel} sub={`${fmtPlanMoney(s.raise)} round`} />
         <MetricCard label={`MRR today → yr ${s.yearsToExit}`} value={`${fmtPlanMoney(s.startingMRR)} → ${fmtPlanMoney(s.endingMRR)}`} sub={`${s.mrrMultiple.toFixed(1)}× growth`} />
         <MetricCard label="Required growth" value={`${s.requiredMonthlyGrowth.toFixed(2)}%/mo`} sub={`you plan ${s.actualMonthlyGrowth.toFixed(2)}%/mo`} />
