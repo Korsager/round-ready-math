@@ -18,11 +18,12 @@ const Card = ({ label, value, color, delta }: { label: string; value: number; co
 
 export default function StatCards({ startingMRR, bull, base, bear }: Props) {
   const d = (v: number) => ((v - startingMRR) / startingMRR) * 100;
+  const h = base.horizonMonths;
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-      <Card label="Bull case m36" value={bull.endingMRR} color="#0A9E5E" delta={d(bull.endingMRR)} />
-      <Card label="Base case m36" value={base.endingMRR} color="#6366F1" delta={d(base.endingMRR)} />
-      <Card label="Bear case m36" value={bear.endingMRR} color="#EF4444" delta={d(bear.endingMRR)} />
+      <Card label={`Bull case m${h}`} value={bull.endingMRR} color="#0A9E5E" delta={d(bull.endingMRR)} />
+      <Card label={`Base case m${h}`} value={base.endingMRR} color="#6366F1" delta={d(base.endingMRR)} />
+      <Card label={`Bear case m${h}`} value={bear.endingMRR} color="#EF4444" delta={d(bear.endingMRR)} />
     </div>
   );
 }

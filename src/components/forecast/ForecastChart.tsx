@@ -21,16 +21,18 @@ const ForecastChart = forwardRef<HTMLDivElement, Props>(({ bull, base, bear, sta
   }));
 
   const dangerTop = startingMRR * 1.2;
+  const horizon = base.horizonMonths;
+  const ticks = horizon >= 60 ? [0, 12, 24, 36, 48, 60] : [0, 6, 12, 18, 24, 30, 36];
 
   return (
     <div ref={ref} className="bg-white rounded-lg border border-[#E5E7EB] p-6 mb-8">
-      <h2 className="sr-only">36-month forecast line chart for bull, base, and bear scenarios</h2>
-      <h3 className="text-[18px] font-medium text-[#111827]">The 36-month forecast: three paths, one decision</h3>
+      <h2 className="sr-only">{horizon}-month forecast line chart for bull, base, and bear scenarios</h2>
+      <h3 className="text-[18px] font-medium text-[#111827]">The {horizon}-month forecast: three paths, one decision</h3>
       <p className="text-[14px] text-[#6B7280] mt-1 mb-3">
         The gap between bull and bear isn't luck. It's the assumptions you build today — hiring, churn, pricing, growth rate.
       </p>
       <div className="text-[15px] text-[#111827] mb-4">
-        Your 36-month Base case MRR is <span className="font-medium" style={{ color: "#6366F1" }}>{fmt(base.endingMRR)}</span>{" "}
+        Your {horizon}-month Base case MRR is <span className="font-medium" style={{ color: "#6366F1" }}>{fmt(base.endingMRR)}</span>{" "}
         (Bull <span style={{ color: "#0A9E5E" }}>{fmt(bull.endingMRR)}</span> – Bear <span style={{ color: "#EF4444" }}>{fmt(bear.endingMRR)}</span>)
       </div>
 
@@ -53,7 +55,7 @@ const ForecastChart = forwardRef<HTMLDivElement, Props>(({ bull, base, bear, sta
             <CartesianGrid stroke="#E5E7EB" strokeDasharray="3 3" />
             <XAxis
               dataKey="month"
-              ticks={[0, 6, 12, 18, 24, 30, 36]}
+              ticks={ticks}
               stroke="#9CA3AF"
               tick={{ fontSize: 11, fill: "#6B7280" }}
             >
