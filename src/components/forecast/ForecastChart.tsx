@@ -4,15 +4,17 @@ import {
 } from "recharts";
 import type { ScenarioResult } from "@/lib/forecast";
 import { fmt, fmtDollars } from "@/lib/format";
+import { monthCalendar } from "@/lib/dateAnchor";
 
 interface Props {
   bull: ScenarioResult;
   base: ScenarioResult;
   bear: ScenarioResult;
   startingMRR: number;
+  planStartDate?: string;
 }
 
-const ForecastChart = forwardRef<HTMLDivElement, Props>(({ bull, base, bear, startingMRR }, ref) => {
+const ForecastChart = forwardRef<HTMLDivElement, Props>(({ bull, base, bear, startingMRR, planStartDate }, ref) => {
   const data = bull.months.map((_, i) => ({
     month: i,
     bull: bull.months[i].mrr,
@@ -73,7 +75,7 @@ const ForecastChart = forwardRef<HTMLDivElement, Props>(({ bull, base, bear, sta
             </ReferenceArea>
             <Tooltip
               formatter={(v: number, name) => [fmtDollars(v), String(name).charAt(0).toUpperCase() + String(name).slice(1)]}
-              labelFormatter={(l) => `Month ${l}`}
+              labelFormatter={(l) => planStartDate ? `Month ${l} (${monthCalendar(planStartDate, Number(l))})` : `Month ${l}`}
               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E5E7EB" }}
             />
             <Line type="monotone" dataKey="bull" stroke="#0A9E5E" strokeWidth={2.5} dot={false} isAnimationActive={false}>
