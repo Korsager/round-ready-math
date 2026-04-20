@@ -20,9 +20,10 @@ export interface ExportCharts {
   cashflowImg?: string;
 }
 
-export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts) {
+export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?: ExportCharts, summaryArg?: PlanSummary) {
   // Pricing lives on the assumptions store; fall back to blank if not provided.
   const pricing = pricingArg ?? a.pricing ?? blankPricingStrategy();
+  const summary = summaryArg ?? computePlanSummary(a);
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
 
