@@ -23,7 +23,7 @@ const fmtMult = (v: number) => `${v.toFixed(1)}×`;
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 
 export default function CourseFundraising() {
-  const { assumptions, setFundraise } = useAssumptions();
+  const { assumptions, setFundraise, setCashflow } = useAssumptions();
   const f = assumptions.fundraise;
 
   const r = useMemo(() => {
@@ -106,6 +106,13 @@ export default function CourseFundraising() {
             value={f.targetIrr}
             format={fmtPct(0)}
             onChange={(v) => setFundraise({ ...f, targetIrr: v })}
+          />
+          <AssumptionRow
+            label="Months until close"
+            description="When the round closes and cash arrives. Drives whether the raise lands before runway zero."
+            value={assumptions.cashflow.monthsUntilRaise}
+            format={fmtNum(" mo")}
+            onChange={(v) => setCashflow({ ...assumptions.cashflow, monthsUntilRaise: Math.max(0, v) })}
           />
           <AssumptionRow label="Years to exit" value={f.yearsToExit} format={fmtNum(" yr")} onChange={(v) => setFundraise({ ...f, yearsToExit: v })} />
           <AssumptionRow label="Target MOIC" value={f.targetMoic} format={fmtMoic} onChange={(v) => setFundraise({ ...f, targetMoic: v })} />
