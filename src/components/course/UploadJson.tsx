@@ -1,28 +1,8 @@
 import { useRef, useState } from "react";
 import { Upload, FilePlus2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAssumptions, type Assumptions } from "@/lib/assumptions";
-import { DEFAULT_INPUTS } from "@/lib/presets";
-import { DEFAULT_CASHFLOW } from "@/lib/cashflow";
-import { DEFAULT_FUNDRAISE } from "@/lib/assumptions";
-import { blankPricingStrategy, mergePricingStrategy } from "@/lib/pricingStrategy";
-
-function mergeAssumptions(parsed: any): Assumptions {
-  // Strip legacy cashflow.fundraiseAmount — raise lives on fundraise slice.
-  const { fundraiseAmount: _legacy, ...cashflowRest } = parsed?.cashflow ?? {};
-  return {
-    fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
-    forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
-    cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
-    pricing: parsed?.pricing ? mergePricingStrategy(parsed.pricing) : blankPricingStrategy(),
-    forecastOverrides: {
-      startingMRRLocked: !!parsed?.forecastOverrides?.startingMRRLocked,
-      newBookingsLocked: !!parsed?.forecastOverrides?.newBookingsLocked,
-      grossMarginLocked: !!parsed?.forecastOverrides?.grossMarginLocked,
-    },
-    forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
-  };
-}
+import { useAssumptions, mergeAssumptionsPayload } from "@/lib/assumptions";
+import { blankPricingStrategy } from "@/lib/pricingStrategy";
 
 export default function UploadJson() {
   const fileRef = useRef<HTMLInputElement>(null);
