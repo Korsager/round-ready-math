@@ -17,7 +17,8 @@ const fmtNum = (s = "") => (v: number) => `${v.toLocaleString("en-US")}${s}`;
 export default function CourseCashflow() {
   const { assumptions, setCashflow } = useAssumptions();
   const c = assumptions.cashflow;
-  const inputs: CashflowInputs = { ...c, forecast: assumptions.forecast };
+  const fundraiseAmount = assumptions.fundraise.raise;
+  const inputs: CashflowInputs = { ...c, fundraiseAmount, forecast: assumptions.forecast };
   const result = useMemo(() => simulateCashflow(inputs, 36), [inputs]);
 
   return (
