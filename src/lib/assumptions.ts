@@ -204,6 +204,10 @@ export function useAssumptions() {
     const next = typeof o === "function" ? (o as (prev: ForecastOverrides) => ForecastOverrides)(current.forecastOverrides) : o;
     save({ ...current, forecastOverrides: next });
   }, []);
+  const setPlanStartDate = useCallback((iso: string) => {
+    if (!/^\d{4}-\d{2}$/.test(iso)) return;
+    save({ ...current, planStartDate: iso });
+  }, []);
   const reset = useCallback(() => save(DEFAULT_ASSUMPTIONS), []);
 
   return {
@@ -215,6 +219,7 @@ export function useAssumptions() {
     setFundraise,
     setPricing,
     setForecastOverrides,
+    setPlanStartDate,
     reset,
   };
 }
