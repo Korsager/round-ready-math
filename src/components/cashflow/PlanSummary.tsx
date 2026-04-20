@@ -48,6 +48,13 @@ export default function PlanSummary({ summary: s }: Props) {
         <MetricCard label={`MRR today → yr ${s.yearsToExit}`} value={`${fmtPlanMoney(s.startingMRR)} → ${fmtPlanMoney(s.endingMRR)}`} sub={`${s.mrrMultiple.toFixed(1)}× growth`} />
         <MetricCard label="Required growth" value={`${s.requiredMonthlyGrowth.toFixed(2)}%/mo`} sub={`you plan ${s.actualMonthlyGrowth.toFixed(2)}%/mo`} />
         <MetricCard label="Implied exit value" value={fmtPlanMoney(s.impliedExitValue)} sub={`at ${s.revenueMultiple}× ARR`} />
+        {s.valuationPerRunwayMonth !== null && (
+          <MetricCard
+            label="Cost of runway"
+            value={`${fmtPlanMoney(s.valuationPerRunwayMonth)} / mo`}
+            sub={s.dilutionPerRunwayMonth !== null ? `${s.dilutionPerRunwayMonth.toFixed(2)}% dilution / mo` : undefined}
+          />
+        )}
       </div>
 
       <div className={`rounded-xl border ${v.bar} p-4 sm:p-5 flex items-start justify-between gap-4`}>

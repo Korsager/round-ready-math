@@ -152,7 +152,13 @@ export default function CourseFundraising() {
           <div className="bg-primary rounded-2xl p-5 sm:p-6 text-primary-foreground shadow-md">
             <h3 className="text-[13px] font-medium opacity-80 mb-1">Post-Money Valuation</h3>
             <p className="text-[36px] sm:text-[44px] font-semibold tabular-nums leading-tight">{fmtM(r.postMoney)}</p>
-            <p className="text-[12px] opacity-70 mb-4">Pre-Money: {fmtM(r.preMoney)} · Raising {fmtM(f.raise)}</p>
+            <p className="text-[12px] opacity-70 mb-1">Pre-Money: {fmtM(r.preMoney)} · Raising {fmtM(f.raise)}</p>
+            {plan.monthsRunwayAfterRaise !== null && plan.valuationPerRunwayMonth !== null && (
+              <p className="text-[12px] opacity-70 mb-4">
+                Buys {plan.monthsRunwayAfterRaise} months → {fmtM(plan.valuationPerRunwayMonth)} / mo of runway
+              </p>
+            )}
+            {!(plan.monthsRunwayAfterRaise !== null && plan.valuationPerRunwayMonth !== null) && <div className="mb-4" />}
             <div className="flex items-center gap-4">
               <div className="w-24 h-24 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">

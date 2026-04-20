@@ -26,6 +26,9 @@ export interface PlanSummary {
   raise: number;
   yearsToExit: number;
   requiredExit: number;
+  postMoney: number;
+  valuationPerRunwayMonth: number | null;
+  dilutionPerRunwayMonth: number | null;
   cfBase: CashflowResult;
   cfBull: CashflowResult;
   cfBear: CashflowResult;
@@ -131,6 +134,15 @@ export function computePlanSummary(a: Assumptions): PlanSummary {
     raise: f.raise,
     yearsToExit: f.yearsToExit,
     requiredExit,
+    postMoney: f.dilutionPct > 0 ? f.raise / (f.dilutionPct / 100) : 0,
+    valuationPerRunwayMonth:
+      cfBase.monthsRunwayAfterRaise && cfBase.monthsRunwayAfterRaise > 0 && f.dilutionPct > 0
+        ? (f.raise / (f.dilutionPct / 100)) / cfBase.monthsRunwayAfterRaise
+        : null,
+    dilutionPerRunwayMonth:
+      cfBase.monthsRunwayAfterRaise && cfBase.monthsRunwayAfterRaise > 0
+        ? f.dilutionPct / cfBase.monthsRunwayAfterRaise
+        : null,
     cfBase,
     cfBull,
     cfBear,
