@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { ForecastInputs } from "./forecast";
 import { DEFAULT_INPUTS } from "./presets";
 import { DEFAULT_CASHFLOW } from "./cashflow";
+import { currentMonthISO } from "./dateAnchor";
 import {
   type PricingStrategy,
   blankPricingStrategy,
@@ -40,6 +41,8 @@ export interface Assumptions {
   pricing: PricingStrategy;
   forecastOverrides: ForecastOverrides;
   forecastManuallyEdited: boolean;
+  /** ISO YYYY-MM. Anchors "month 0" for runway, raise timing, and exports. */
+  planStartDate: string;
 }
 
 export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
@@ -65,6 +68,7 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
   pricing: blankPricingStrategy(),
   forecastOverrides: DEFAULT_FORECAST_OVERRIDES,
   forecastManuallyEdited: false,
+  planStartDate: currentMonthISO(),
 };
 
 const STORAGE_KEY = "founders-toolkit-assumptions-v1";
@@ -97,6 +101,10 @@ export function mergeAssumptionsPayload(parsed: any, legacyPricing: PricingStrat
     pricing = blankPricingStrategy();
   }
 
+  const planStartDate = typeof parsed?.planStartDate === "string" && /^\d{4}-\d{2}$/.test(parsed.planStartDate)
+    ? parsed.planStartDate
+    : currentMonthISO();
+
   return {
     fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
@@ -104,6 +112,7 @@ export function mergeAssumptionsPayload(parsed: any, legacyPricing: PricingStrat
     pricing,
     forecastOverrides: { ...DEFAULT_FORECAST_OVERRIDES, ...(parsed?.forecastOverrides ?? {}) },
     forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
+    planStartDate,
   };
 }
 
