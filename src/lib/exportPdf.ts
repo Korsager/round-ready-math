@@ -251,7 +251,7 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise} (${cal(a.cashflow.monthsUntilRaise)})`);
   row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth} (${cal(cf.runwayMonth)})` : "Beyond 36 months");
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
-  row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth}` : "Not within 36 mo");
+  row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth} (${cal(cf.breakEvenMonth)})` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
   y += 12;
 
