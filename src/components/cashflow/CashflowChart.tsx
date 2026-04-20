@@ -8,7 +8,7 @@ interface Props {
   monthsUntilRaise: number;
 }
 
-const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRaise }, ref) => {
+const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result }, ref) => {
   const data = result.months.map((m) => ({
     month: m.month,
     cash: Math.round(m.cashBalance),
@@ -17,10 +17,12 @@ const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRa
     revenue: Math.round(m.revenue),
   }));
 
+  const raiseLines = result.plannedRaises.filter((r) => r.month >= 0 && r.month <= 36 && r.amount > 0);
+
   return (
     <div ref={ref} className="bg-white rounded-xl border border-[#E5E7EB] p-5">
       <h3 className="text-[15px] font-semibold text-[#111827] mb-1">Cash balance over 36 months</h3>
-      <p className="text-[12px] text-[#6B7280] mb-4">Blue area = cash on hand. Red bars = monthly burn. Green bars = monthly profit. Dashed line = raise closes.</p>
+      <p className="text-[12px] text-[#6B7280] mb-4">Blue area = cash on hand. Red bars = monthly burn. Green bars = monthly profit. Dashed green lines = raises.</p>
       <div style={{ width: "100%", height: 360 }}>
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
@@ -40,9 +42,15 @@ const CashflowChart = forwardRef<HTMLDivElement, Props>(({ result, monthsUntilRa
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <ReferenceLine y={0} stroke="#9CA3AF" />
-            {monthsUntilRaise > 0 && monthsUntilRaise <= 36 && (
-              <ReferenceLine x={monthsUntilRaise} stroke="#10B981" strokeDasharray="4 4" label={{ value: "Raise", fill: "#10B981", fontSize: 11, position: "top" }} />
-            )}
+            {raiseLines.map((r) => (
+              <ReferenceLine
+                key={r.id}
+                x={r.month}
+                stroke="#10B981"
+                strokeDasharray="4 4"
+                label={{ value: r.label, fill: "#10B981", fontSize: 11, position: "top" }}
+              />
+            ))}
             {result.runwayMonth !== null && (
               <ReferenceLine x={result.runwayMonth} stroke="#EF4444" strokeDasharray="4 4" label={{ value: "Out of cash", fill: "#EF4444", fontSize: 11, position: "top" }} />
             )}

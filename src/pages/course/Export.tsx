@@ -25,7 +25,13 @@ export default function CourseExport() {
     bull: runScenario(assumptions.forecast, "bull"),
     base: runScenario(assumptions.forecast, "base"),
     bear: runScenario(assumptions.forecast, "bear"),
-    cf: simulateCashflow({ ...assumptions.cashflow, fundraiseAmount: assumptions.fundraise.raise, forecast: assumptions.forecast }, 36),
+    cf: simulateCashflow({
+      ...assumptions.cashflow,
+      currentRound: { month: assumptions.cashflow.monthsUntilRaise, amount: assumptions.fundraise.raise, dilutionPct: assumptions.fundraise.dilutionPct },
+      manualRaises: assumptions.raisePlan.manualRaises,
+      autoPlan: assumptions.raisePlan.autoPlan,
+      forecast: assumptions.forecast,
+    }, 36),
   }), [assumptions]);
 
   const captureCharts = async () => {

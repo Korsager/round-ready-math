@@ -1,19 +1,23 @@
 import { useRef, useState } from "react";
 import { Upload, FilePlus2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAssumptions, type Assumptions } from "@/lib/assumptions";
+import { useAssumptions, type Assumptions, DEFAULT_FUNDRAISE, DEFAULT_RAISE_PLAN } from "@/lib/assumptions";
 import { DEFAULT_INPUTS } from "@/lib/presets";
 import { DEFAULT_CASHFLOW } from "@/lib/cashflow";
-import { DEFAULT_FUNDRAISE } from "@/lib/assumptions";
+import { DEFAULT_AUTO_PLAN } from "@/lib/raises";
 import { savePricingStrategy, blankPricingStrategy } from "@/lib/pricingStrategy";
 
 function mergeAssumptions(parsed: any): Assumptions {
-  // Strip legacy cashflow.fundraiseAmount — raise lives on fundraise slice.
   const { fundraiseAmount: _legacy, ...cashflowRest } = parsed?.cashflow ?? {};
+  const rp = parsed?.raisePlan ?? {};
   return {
     fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
     cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
+    raisePlan: {
+      manualRaises: Array.isArray(rp.manualRaises) ? rp.manualRaises : [],
+      autoPlan: { ...DEFAULT_AUTO_PLAN, ...(rp.autoPlan ?? {}) },
+    },
     forecastManuallyEdited: !!parsed?.forecastManuallyEdited,
   };
 }
@@ -36,7 +40,7 @@ function mergePricing(parsed: any) {
 export default function UploadJson() {
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { setForecast, setCashflow, setFundraise, reset } = useAssumptions();
+  const { setForecast, setCashflow, setFundraise, setRaisePlan, reset } = useAssumptions();
   const [error, setError] = useState<string | null>(null);
 
   const startFresh = () => {
@@ -54,6 +58,7 @@ export default function UploadJson() {
       setFundraise(merged.fundraise);
       setForecast(merged.forecast);
       setCashflow(merged.cashflow);
+      setRaisePlan(merged.raisePlan);
       if (parsed?.pricing) {
         savePricingStrategy(mergePricing(parsed.pricing));
       }
