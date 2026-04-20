@@ -165,7 +165,7 @@ export function requiredMonthlyGrowth(
   return (Math.pow(requiredMRRatExit / startingMRR, 1 / months) - 1) * 100;
 }
 
-export function buildMatrix(inputs: ForecastInputs) {
+export function buildMatrix(inputs: ForecastInputs, horizonMonths: number = 36) {
   const nrrRows = [80, 85, 90, 95, 100, 105, 110, 115, 120];
   const growCols = [2, 3, 4, 5, 6, 7, 8, 9, 10];
   const values: number[][] = [];
@@ -193,13 +193,13 @@ export function buildMatrix(inputs: ForecastInputs) {
         monthlyGrossChurnRate: baseGross * scale,
         monthlyDowngradeRate: baseDown * scale,
         monthlyExpansionRate: baseExp * scale,
-      }, 36);
-      const v = months[36].mrr;
+      }, horizonMonths);
+      const v = months[horizonMonths].mrr;
       row.push(v);
       if (v < min) min = v;
       if (v > max) max = v;
     }
     values.push(row);
   }
-  return { nrrRows, growCols, values, min, max };
+  return { nrrRows, growCols, values, min, max, horizonMonths };
 }

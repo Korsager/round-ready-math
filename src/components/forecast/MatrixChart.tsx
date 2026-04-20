@@ -6,6 +6,7 @@ import { fmt, fmtDollars } from "@/lib/format";
 interface Props {
   inputs: ForecastInputs;
   onCellClick: (nrr: number, growth: number) => void;
+  horizonMonths?: number;
 }
 
 const STOPS = [
@@ -28,15 +29,15 @@ function colorFor(t: number): string {
   return "rgb(10,158,94)";
 }
 
-const MatrixChart = forwardRef<HTMLDivElement, Props>(({ inputs, onCellClick }, ref) => {
-  const m = buildMatrix(inputs);
+const MatrixChart = forwardRef<HTMLDivElement, Props>(({ inputs, onCellClick, horizonMonths = 36 }, ref) => {
+  const m = buildMatrix(inputs, horizonMonths);
 
   return (
     <div ref={ref} className="bg-white rounded-lg border border-[#E5E7EB] p-6 mb-8">
-      <h2 className="sr-only">NRR by monthly growth matrix showing month 36 MRR outcomes</h2>
-      <h3 className="text-[18px] font-medium text-[#111827]">Where will you be in 36 months? The two assumptions that decide everything.</h3>
+      <h2 className="sr-only">NRR by monthly growth matrix showing month {horizonMonths} MRR outcomes</h2>
+      <h3 className="text-[18px] font-medium text-[#111827]">Where will you be in {horizonMonths} months? The two assumptions that decide everything.</h3>
       <p className="text-[14px] text-[#6B7280] mt-1 mb-5">
-        Starting MRR: <span className="text-[#111827]">{fmtDollars(inputs.startingMRR)}</span>. Each cell shows the outcome at month 36 based on NRR and monthly growth rate alone.
+        Starting MRR: <span className="text-[#111827]">{fmtDollars(inputs.startingMRR)}</span>. Each cell shows the outcome at month {horizonMonths} based on NRR and monthly growth rate alone.
       </p>
 
       <div className="flex gap-4">
