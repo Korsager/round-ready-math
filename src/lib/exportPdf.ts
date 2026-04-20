@@ -6,6 +6,7 @@ import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary } from "./planSummary";
 import { monthCalendar, planStartLabel } from "./dateAnchor";
+import { computePlanNarrative, type LinkStatus } from "./planNarrative";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -169,7 +170,48 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   doc.text(vLines, M + 14, y + 32);
   y += 60;
 
+  // How the plan connects (narrative)
+  doc.addPage(); y = M;
+  title("How the plan connects");
+  const narrative = computePlanNarrative(a, summary);
+  para(narrative.openingSentence);
+  y += 4;
+  const statusColor: Record<LinkStatus, [number, number, number]> = {
+    ok: [16, 185, 129],
+    warn: [217, 119, 6],
+    fail: [220, 38, 38],
+  };
+  const statusGlyph: Record<LinkStatus, string> = { ok: "OK", warn: "GAP", fail: "BREAK" };
+  narrative.links.forEach((link, idx) => {
+    ensureRoom(60);
+    const [r, g, b] = statusColor[link.status];
+    // Badge
+    doc.setFillColor(r, g, b);
+    doc.roundedRect(M, y - 10, 44, 16, 3, 3, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+    doc.text(statusGlyph[link.status], M + 22, y + 1, { align: "center" });
+    // Title
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(17, 24, 39);
+    doc.text(`[${idx + 1}/5] ${link.title}`, M + 54, y);
+    y += 16;
+    para(link.sentence);
+    if (link.detail) {
+      doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(107, 114, 128);
+      const dLines = doc.splitTextToSize(link.detail, W - M * 2);
+      ensureRoom(dLines.length * 12 + 4);
+      doc.text(dLines, M, y);
+      y += dLines.length * 12 + 4;
+    }
+    y += 4;
+  });
+  ensureRoom(30);
+  doc.setFont("helvetica", "bolditalic"); doc.setFontSize(10); doc.setTextColor(31, 41, 55);
+  const cLines = doc.splitTextToSize(narrative.closingSentence, W - M * 2);
+  doc.text(cLines, M, y);
+  y += cLines.length * 13 + 8;
+
   // Pricing strategy
+  doc.addPage(); y = M;
   title("Pricing strategy");
   labeledBlock("Business model", pricing.context.businessModel);
   labeledBlock("Customer segments", pricing.context.segments);
