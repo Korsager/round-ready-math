@@ -8,9 +8,11 @@ interface Props {
   format: (v: number) => string;
   onChange?: (v: number) => void;
   derived?: boolean;
+  /** Optional small grey hint shown after the label (e.g. motion benchmark). */
+  hint?: string;
 }
 
-export default function AssumptionRow({ label, description, value, format, onChange, derived }: Props) {
+export default function AssumptionRow({ label, description, value, format, onChange, derived, hint }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
