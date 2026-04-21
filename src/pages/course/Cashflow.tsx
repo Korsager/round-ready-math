@@ -50,9 +50,36 @@ export default function CourseCashflow() {
   };
 
   const summary = useMemo(() => computePlanSummary(assumptions), [assumptions]);
-  const result = summary.cfBase;
+  const [scenario, setScenario] = useState<"bull" | "base" | "bear">("base");
 
+  // Per-scenario cashflow uses the same multipliers as forecast scenarios so
+  // the bull/base/bear runway numbers stay consistent with Revenue/Fundraising.
+  const scenarioResults = useMemo(() => {
+    const horizon = summary.horizonMonths;
+    const run = (key: "bull" | "base" | "bear"): CashflowResult => {
+      const s = SCENARIOS[key];
+      const adjForecast = {
+        ...assumptions.forecast,
+        monthlyGrowthRate: assumptions.forecast.monthlyGrowthRate * s.growthMult,
+        monthlyGrossChurnRate: assumptions.forecast.monthlyGrossChurnRate * s.churnMult,
+        monthlyDowngradeRate: assumptions.forecast.monthlyDowngradeRate * s.downMult,
+        monthlyExpansionRate: assumptions.forecast.monthlyExpansionRate * s.expMult,
+        hiringLagDays: assumptions.forecast.hiringLagDays * s.rampMult,
+      };
+      return simulateCashflow({ ...c, fundraiseAmount, forecast: adjForecast }, horizon);
+    };
+    return { bull: run("bull"), base: summary.cfBase, bear: run("bear") };
+  }, [assumptions.forecast, c, fundraiseAmount, summary.horizonMonths, summary.cfBase]);
+
+  const result = scenarioResults[scenario];
   const gmLocked = forecastOverrides.grossMarginLocked || !hasPricingGM;
+
+  const scenarioTabs: Array<{ key: "bull" | "base" | "bear"; label: string }> = [
+    { key: "bull", label: "Bull" },
+    { key: "base", label: "Base" },
+    { key: "bear", label: "Bear" },
+  ];
+  const defaultAliveLabel = (r: CashflowResult) => r.defaultAliveMonth ? `mo ${r.defaultAliveMonth}` : "not reached";
 
   return (
     <CourseLayout
