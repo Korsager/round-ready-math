@@ -93,22 +93,35 @@ export default function CourseFundraising() {
   const tone = (irr: number) =>
     irr >= f.targetIrr ? "text-emerald-600" : irr >= f.targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
   const verdictTone = tone(r.calcIrr);
-  const impliedTone = tone(implied.impliedIrrPct);
+  const forecastTone = tone(forecastDerived.forecastImpliedIrr);
 
   const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
 
-  const baseNarrative = (() => {
-    if (implied.impliedIrrPct >= f.targetIrr) {
-      return `Your forecast supports the IRR investors need. A ${f.targetIrr}% fund hurdle is achievable at your projected trajectory.`;
-    }
-    if (implied.basis === "revenue") {
-      return `At ${f.revenueMultiple}× year-${f.yearsToExit} ARR, your forecast implies ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% investors target. Either growth needs to be higher, exit timing sooner, or the multiple assumption optimistic.`;
-    }
-    return `Pricing on dilution, your claimed ${f.targetMoic}× MOIC delivers ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% target. Investors will ask for a sharper story — what exit buyer pays this, and when?`;
-  })();
-  const narrative = runwayState === "red"
-    ? `Funding gap: this raise doesn't cover the runway needed to execute the plan. ${baseNarrative}`
-    : baseNarrative;
+  // Single source of truth: verdict tone, headline, and detail all derive from
+  // the same gap between forecast-implied IRR and the target. Prevents the
+  // green-headline / required>actual contradiction.
+  const irrGap = forecastDerived.forecastImpliedIrr - f.targetIrr;
+  const verdict = irrGap >= 0
+    ? {
+        wrap: "border-emerald-200 bg-emerald-50",
+        headline: "Your forecast supports the IRR investors need.",
+        detail: `Projected trajectory clears the ${f.targetIrr}% hurdle by ${irrGap.toFixed(1)} pts.`,
+      }
+    : irrGap >= -5
+      ? {
+          wrap: "border-amber-200 bg-amber-50",
+          headline: "Your forecast is close but short of investor hurdle.",
+          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle — tighten growth or revenue multiple to close it.`,
+        }
+      : {
+          wrap: "border-red-200 bg-red-50",
+          headline: "Your forecast does not support the IRR investors need.",
+          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle.`,
+        };
+
+  const runwayPrefix = runwayState === "red"
+    ? "Funding gap: this raise doesn't cover the runway needed to execute the plan. "
+    : "";
 
   return (
     <CourseLayout
