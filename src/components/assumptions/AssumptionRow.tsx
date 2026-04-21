@@ -32,7 +32,10 @@ export default function AssumptionRow({ label, description, value, format, onCha
   return (
     <div className="flex items-start justify-between gap-3 py-2.5 border-b border-[#F3F4F6] last:border-0" title={description}>
       <div className="min-w-0">
-        <div className="text-[13px] text-[#111827]">{label}</div>
+        <div className="text-[13px] text-[#111827] flex items-baseline gap-1.5 flex-wrap">
+          <span>{label}</span>
+          {hint && <span className="text-[10px] text-[#9CA3AF] font-normal">{hint}</span>}
+        </div>
         {description && <div className="text-[11px] text-[#9CA3AF] mt-0.5 leading-snug">{description}</div>}
       </div>
       <div className="shrink-0">
