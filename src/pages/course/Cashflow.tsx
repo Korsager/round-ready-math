@@ -10,7 +10,7 @@ import { useAssumptions } from "@/lib/assumptions";
 import { computePlanSummary } from "@/lib/planSummary";
 import { derivedGrossMargin } from "@/lib/pricingStrategy";
 import { simulateCashflow, type CashflowResult } from "@/lib/cashflow";
-import { SCENARIOS } from "@/lib/forecast";
+import { SCENARIOS, deriveCacPayback } from "@/lib/forecast";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -73,6 +73,10 @@ export default function CourseCashflow() {
 
   const result = scenarioResults[scenario];
   const gmLocked = forecastOverrides.grossMarginLocked || !hasPricingGM;
+  const cacPaybackMonths = useMemo(
+    () => deriveCacPayback(assumptions.forecast.cac, assumptions.forecast.blendedArpu, c.grossMargin),
+    [assumptions.forecast.cac, assumptions.forecast.blendedArpu, c.grossMargin],
+  );
 
   const scenarioTabs: Array<{ key: "bull" | "base" | "bear"; label: string }> = [
     { key: "bull", label: "Bull" },
@@ -158,7 +162,7 @@ export default function CourseCashflow() {
                   </div>
                 </div>
               </div>
-              <RunwayCards result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
+              <RunwayCards result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} cacPaybackMonths={cacPaybackMonths} />
               <CashflowChart result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
               <CashflowTable result={result} />
             </div>
