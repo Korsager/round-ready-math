@@ -8,6 +8,7 @@ import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
 import UnitEconomicsCard from "@/components/forecast/UnitEconomicsCard";
 import PricingReconciliation from "@/components/forecast/PricingReconciliation";
+import MotionDefaultsCard from "@/components/forecast/MotionDefaultsCard";
 import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
@@ -17,6 +18,7 @@ import {
   derivedStartingMRR,
   derivedMonthlyNewBookings,
 } from "@/lib/pricingStrategy";
+import { activeMotion, applyMotionDefaults, MOTION_PROFILES } from "@/lib/motionProfiles";
 import { computeUnitEconomics } from "@/lib/unitEconomics";
 
 const fmtUsd = (v: number) => {
@@ -152,6 +154,16 @@ export default function CourseRevenue() {
     [forecast, pricing, cashflow.grossMargin],
   );
 
+  const motion = useMemo(() => activeMotion(pricing.models ?? []), [pricing.models]);
+  const motionProfile = motion ? MOTION_PROFILES[motion] : null;
+  const applyMotion = () => {
+    if (!motion) return;
+    setForecast((prev: ForecastInputs) => applyMotionDefaults(prev, motion));
+    toast.success(`Applied ${motion} benchmarks`, {
+      description: "Adjust any input to match your own data.",
+    });
+  };
+
   const forecastRef = useRef<HTMLDivElement>(null);
   const matrixRef = useRef<HTMLDivElement>(null);
 
@@ -240,6 +252,7 @@ export default function CourseRevenue() {
             value={ue.paybackMonths}
             format={(v) => v > 0 ? `${v.toFixed(1)} mo` : "—"}
             derived
+            hint={motionProfile ? `${motion}: ${motionProfile.cacPaybackMonthsBenchmark} mo` : undefined}
           />
           <AssumptionRow
             label="Implied new customers / mo"
@@ -255,15 +268,18 @@ export default function CourseRevenue() {
             </div>
           )}
 
-          <AssumptionRow label="Growth rate" value={forecast.monthlyGrowthRate} format={fmtPct(1)} onChange={(v) => setForecast({ ...forecast, monthlyGrowthRate: v })} />
-          <AssumptionRow label="Gross churn" value={forecast.monthlyGrossChurnRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyGrossChurnRate: v })} />
-          <AssumptionRow label="Downgrades" value={forecast.monthlyDowngradeRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyDowngradeRate: v })} />
-          <AssumptionRow label="Expansion" value={forecast.monthlyExpansionRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyExpansionRate: v })} />
-          <AssumptionRow label="Hiring ramp" value={forecast.hiringLagDays} format={fmtNum(" days")} onChange={(v) => setForecast({ ...forecast, hiringLagDays: v })} />
+          <AssumptionRow label="Growth rate" value={forecast.monthlyGrowthRate} format={fmtPct(1)} onChange={(v) => setForecast({ ...forecast, monthlyGrowthRate: v })} hint={motionProfile ? `${motion}: ${motionProfile.monthlyGrowthRate}%` : undefined} />
+          <AssumptionRow label="Gross churn" value={forecast.monthlyGrossChurnRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyGrossChurnRate: v })} hint={motionProfile ? `${motion}: ${motionProfile.monthlyGrossChurnRate}%` : undefined} />
+          <AssumptionRow label="Downgrades" value={forecast.monthlyDowngradeRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyDowngradeRate: v })} hint={motionProfile ? `${motion}: ${motionProfile.monthlyDowngradeRate}%` : undefined} />
+          <AssumptionRow label="Expansion" value={forecast.monthlyExpansionRate} format={fmtPct(2)} onChange={(v) => setForecast({ ...forecast, monthlyExpansionRate: v })} hint={motionProfile ? `${motion}: ${motionProfile.monthlyExpansionRate}%` : undefined} />
+          <AssumptionRow label="Hiring ramp" value={forecast.hiringLagDays} format={fmtNum(" days")} onChange={(v) => setForecast({ ...forecast, hiringLagDays: v })} hint={motionProfile ? `${motion}: ${motionProfile.hiringLagDays} days` : undefined} />
           <AssumptionRow label="Annual NRR" value={nrr} format={fmtPct(1)} derived />
         </section>
 
         <div className="space-y-4 min-w-0">
+          {motion && (
+            <MotionDefaultsCard model={motion} onApply={applyMotion} />
+          )}
           <PricingReconciliation
             pricing={pricing}
             startingMRR={forecast.startingMRR}
