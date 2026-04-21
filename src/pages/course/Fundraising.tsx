@@ -109,7 +109,6 @@ export default function CourseFundraising() {
   const tone = (irr: number) =>
     irr >= f.targetIrr ? "text-emerald-600" : irr >= f.targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
   const verdictTone = tone(r.calcIrr);
-  const forecastTone = tone(forecastDerived.forecastImpliedIrr);
 
   const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
 
