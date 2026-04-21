@@ -159,6 +159,21 @@ export function blendedARPU(pricing: PricingStrategy): number {
   return pricedAny ? weighted : 0;
 }
 
+// Blended ARPU adjusted for annual-billing mix.
+// Per the article's "60-70% rule" we assume 40% of paying customers are billed
+// annually when an annual discount has been set on the strategy. The annual
+// price field is the per-month equivalent ("$24/mo billed annually"), so we
+// just take the discount off the monthly price for the annual cohort.
+export function blendedARPUWithAnnual(pricing: PricingStrategy, annualMix = 0.4): number {
+  const monthly = blendedARPU(pricing);
+  if (monthly <= 0) return 0;
+  const discount = parseFloat(pricing.annualDiscountPct || "0");
+  if (!isFinite(discount) || discount <= 0) return monthly;
+  const discountFrac = Math.max(0, Math.min(100, discount)) / 100;
+  const annualMonthlyEquivalent = monthly * (1 - discountFrac);
+  return monthly * (1 - annualMix) + annualMonthlyEquivalent * annualMix;
+}
+
 export function derivedStartingMRR(pricing: PricingStrategy): number {
   return blendedARPU(pricing) * (pricing.currentCustomers || 0);
 }
