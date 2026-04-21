@@ -554,3 +554,21 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
     </div>
   );
 }
+
+function PricingMaturityScore({ checklist }: { checklist: Record<string, boolean> }) {
+  const m = computePricingMaturity({ checklist } as PricingStrategy);
+  const palette = {
+    good: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    warn: "bg-amber-50 border-amber-200 text-amber-900",
+    bad: "bg-red-50 border-red-200 text-red-900",
+  }[m.tone];
+  return (
+    <div className={`rounded-lg border p-3 ${palette}`}>
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wider opacity-70">Pricing maturity score</div>
+        <div className="text-2xl font-bold tabular-nums">{m.score}/{m.total}</div>
+      </div>
+      <p className="text-sm mt-1">{m.verdict}</p>
+    </div>
+  );
+}
