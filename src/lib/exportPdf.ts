@@ -238,6 +238,9 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
 
   labeledBlock("Anchoring notes", pricing.anchoringNotes);
   labeledBlock("Upgrade triggers", pricing.upgradeTriggers);
+  const maturity = computePricingMaturity(pricing);
+  row("Pricing maturity score", `${maturity.score} / ${maturity.total}`);
+  para(maturity.verdict);
   y += 6;
 
   // Fundraising
