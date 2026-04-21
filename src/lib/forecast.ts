@@ -7,7 +7,13 @@ export interface ForecastInputs {
   monthlyGrossChurnRate: number; // % of MRR lost to cancellations
   monthlyDowngradeRate: number; // % of MRR lost to downgrades
   monthlyExpansionRate: number; // % of MRR gained from expansion
+  // Unit economics — drive cashflow S&M load and the LTV/CAC card.
+  // Default to non-zero so old saves don't divide-by-zero downstream.
+  cac: number;                  // $ to acquire one customer
+  cacPaybackMonths: number;     // target payback period for one customer
+  blendedArpu: number;          // $/customer/month — auto-derived from pricing or manual
 }
+
 
 export interface MonthlyData {
   month: number;
