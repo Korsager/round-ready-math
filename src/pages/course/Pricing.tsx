@@ -533,7 +533,12 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
         </section>
 
         <section>
-          <h4 className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">Pricing Maturity Checklist</h4>
+          <div className="flex items-baseline justify-between mb-3">
+            <h4 className="text-sm font-semibold uppercase tracking-wider text-primary">Pricing Maturity Checklist</h4>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {CHECKLIST_ITEMS.reduce((n, i) => n + (s.checklist[i] ? 1 : 0), 0)} of {CHECKLIST_ITEMS.length} ready
+            </span>
+          </div>
           <PricingMaturityScore checklist={s.checklist} />
           <div className="space-y-2 mt-4">
             {CHECKLIST_ITEMS.map((item) => (
