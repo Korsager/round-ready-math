@@ -229,8 +229,9 @@ export default function CourseFundraising() {
             <Metric icon={PieChart} label="Investor Ownership" value={`${(r.ownership * 100).toFixed(1)}%`} sub="post-round" />
           </div>
 
-          <div className="rounded-xl border border-[#E5E7EB] bg-secondary/40 p-4">
-            <p className="text-[13px] text-[#374151] leading-relaxed">{narrative}</p>
+          <div className={`rounded-xl border p-4 ${verdict.wrap}`}>
+            <p className="text-[13px] font-semibold text-[#111827] leading-relaxed">{runwayPrefix}{verdict.headline}</p>
+            <p className="text-[12px] text-[#374151] leading-relaxed mt-1">{verdict.detail}</p>
             <p className="text-[12px] text-[#374151] mt-2">
               Target requires compounding MRR at <span className="font-semibold tabular-nums">{reqGrowth.toFixed(2)}%/mo</span> — your forecast assumes{" "}
               <span className={`font-semibold tabular-nums ${growthTone}`}>{actualGrowth.toFixed(2)}%/mo</span>.
