@@ -236,10 +236,10 @@ export default function CourseRevenue() {
           />
           <AssumptionRow
             label="CAC payback"
-            description="Months until gross profit from a new customer covers the CAC. Healthy SaaS: 12 or less."
-            value={forecast.cacPaybackMonths}
-            format={fmtNum(" mo")}
-            onChange={(v) => setForecast({ ...forecast, cacPaybackMonths: Math.max(0, Math.round(v)) })}
+            description="CAC ÷ (ARPU × gross margin). Healthy SaaS: 12 mo or less."
+            value={ue.paybackMonths}
+            format={(v) => v > 0 ? `${v.toFixed(1)} mo` : "—"}
+            derived
           />
           <AssumptionRow
             label="Implied new customers / mo"

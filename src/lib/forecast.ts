@@ -16,6 +16,24 @@ export interface ForecastInputs {
   customerCount?: number;
 }
 
+/**
+ * Months until a customer's gross profit covers their CAC.
+ *   payback (mo) = CAC / (ARPA × grossMargin/100)
+ * Returns null when any input is non-positive.
+ */
+export function deriveCacPayback(
+  cac: number,
+  blendedARPA: number,
+  grossMarginPct: number,
+): number | null {
+  if (!isFinite(cac) || cac <= 0) return null;
+  if (!isFinite(blendedARPA) || blendedARPA <= 0) return null;
+  if (!isFinite(grossMarginPct) || grossMarginPct <= 0) return null;
+  const monthlyContribution = blendedARPA * (grossMarginPct / 100);
+  if (monthlyContribution <= 0) return null;
+  return cac / monthlyContribution;
+}
+
 
 export interface MonthlyData {
   month: number;

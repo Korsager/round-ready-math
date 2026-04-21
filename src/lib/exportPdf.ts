@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
-import { runScenario } from "./forecast";
+import { runScenario, deriveCacPayback } from "./forecast";
 import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary } from "./planSummary";
@@ -268,9 +268,14 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   y += 12;
 
   // Revenue
+  const cacPayback = deriveCacPayback(a.forecast.cac, a.forecast.blendedArpu, a.cashflow.grossMargin);
+  const cacPaybackLabel = cacPayback !== null ? `${cacPayback.toFixed(1)} mo` : "—";
   title("Revenue forecast (base case)");
   row("Starting MRR", fmtUsd(a.forecast.startingMRR));
   row("Monthly new bookings", fmtUsd(a.forecast.monthlyNewBookings));
+  row("Blended ARPU", `${fmtUsd(a.forecast.blendedArpu)}/mo`);
+  row("CAC", fmtUsd(a.forecast.cac));
+  row("CAC payback (derived)", cacPaybackLabel);
   row("Growth rate", `${a.forecast.monthlyGrowthRate}%/mo`);
   row("Gross churn", `${a.forecast.monthlyGrossChurnRate}%/mo`);
   row("Expansion", `${a.forecast.monthlyExpansionRate}%/mo`);
@@ -297,6 +302,7 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("Fundraise inflow", `${fmtM(a.fundraise.raise)} in mo ${a.cashflow.monthsUntilRaise} (${cal(a.cashflow.monthsUntilRaise)})`);
   row("Runway hits zero", cf.runwayMonth ? `Month ${cf.runwayMonth} (${cal(cf.runwayMonth)})` : "Beyond 36 months");
   row("Runway after raise", cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo`);
+  row("CAC payback", cacPaybackLabel);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth} (${cal(cf.breakEvenMonth)})` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
   y += 12;

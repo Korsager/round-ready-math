@@ -1,7 +1,7 @@
 import pptxgen from "pptxgenjs";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
-import { runScenario } from "./forecast";
+import { runScenario, deriveCacPayback } from "./forecast";
 import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary, fmtPlanMoney } from "./planSummary";
@@ -256,11 +256,14 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     ? `Aligned: forecast supports ${implied.impliedIrrPct.toFixed(1)}% IRR, above the ${a.fundraise.targetIrr}% target.`
     : `Gap: forecast implies ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${a.fundraise.targetIrr}% investors require.`);
 
+  const cacPayback = deriveCacPayback(a.forecast.cac, a.forecast.blendedArpu, a.cashflow.grossMargin);
+  const cacPaybackLabel = cacPayback !== null ? `${cacPayback.toFixed(1)} mo` : "—";
   sectionSlide("Step 4", "Cashflow & runway", [
     { label: "Starting cash", value: fmtUsd(a.cashflow.startingCash) },
     { label: "Starting burn", value: `${fmtUsd(a.cashflow.startingBurn)}/mo` },
     { label: "Runway hits zero", value: cf.runwayMonth ? `Mo ${cf.runwayMonth} (${cal(cf.runwayMonth)})` : ">36 mo" },
     { label: "After raise", value: cf.monthsRunwayAfterRaise === null ? "—" : `${cf.monthsRunwayAfterRaise} mo` },
+    { label: "CAC payback", value: cacPaybackLabel },
     { label: "Break-even", value: cf.breakEvenMonth ? `Mo ${cf.breakEvenMonth} (${cal(cf.breakEvenMonth)})` : "Not in 36 mo" },
     { label: "Burn multiple", value: isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞" },
     { label: "Raise size", value: fmtM(a.fundraise.raise) },

@@ -1,6 +1,7 @@
 // Unit economics derived from forecast + churn. Pure, no React.
 
 import type { ForecastInputs } from "./forecast";
+import { deriveCacPayback } from "./forecast";
 import type { PricingStrategy } from "./pricingStrategy";
 import { blendedGrossMargin } from "./pricingStrategy";
 
@@ -41,7 +42,11 @@ export function computeUnitEconomics(
 
   const ltvCacRatio = cac > 0 ? ltv / cac : 0;
 
-  const paybackMonths = forecast.cacPaybackMonths > 0 ? forecast.cacPaybackMonths : 0;
+  // Payback derived from CAC, ARPU and blended gross margin (single source of
+  // truth). Falls back to the user-stated forecast.cacPaybackMonths when ARPU
+  // or margin is missing.
+  const derivedPayback = deriveCacPayback(cac, arpu, blendedGrossMarginPct);
+  const paybackMonths = derivedPayback ?? (forecast.cacPaybackMonths > 0 ? forecast.cacPaybackMonths : 0);
 
   const ratioStatus: UEStatus =
     cac <= 0 ? "warn" :
