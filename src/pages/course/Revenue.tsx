@@ -154,6 +154,16 @@ export default function CourseRevenue() {
     [forecast, pricing, cashflow.grossMargin],
   );
 
+  const motion = useMemo(() => activeMotion(pricing.models ?? []), [pricing.models]);
+  const motionProfile = motion ? MOTION_PROFILES[motion] : null;
+  const applyMotion = () => {
+    if (!motion) return;
+    setForecast((prev: ForecastInputs) => applyMotionDefaults(prev, motion));
+    toast.success(`Applied ${motion} benchmarks`, {
+      description: "Adjust any input to match your own data.",
+    });
+  };
+
   const forecastRef = useRef<HTMLDivElement>(null);
   const matrixRef = useRef<HTMLDivElement>(null);
 
