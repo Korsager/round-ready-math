@@ -242,7 +242,7 @@ export default function CourseFundraising() {
             <Metric icon={PieChart} label="Investor Ownership" value={`${(r.ownership * 100).toFixed(1)}%`} sub="post-round" />
           </div>
 
-          <ValuationGapCard
+          <IrrGrid targetIrr={f.targetIrr} userMoic={f.targetMoic} userYears={f.yearsToExit} />
             requiredExit={r.reqExit}
             forecastExit={forecastDerived.impliedExitValue}
             gap={valuationGap}
