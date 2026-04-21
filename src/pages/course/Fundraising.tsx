@@ -236,17 +236,20 @@ export default function CourseFundraising() {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <Metric icon={Target} label="Target IRR" value={`${f.targetIrr}%`} sub="investor's hurdle" />
             <Metric icon={BarChart3} label="MOIC-implied IRR" value={`${r.calcIrr.toFixed(1)}%`} sub={`at ${f.targetMoic}× MOIC`} tone={verdictTone} />
-            <Metric
-              icon={LineChart}
-              label="Forecast-implied IRR"
-              value={`${forecastDerived.forecastImpliedIrr.toFixed(1)}%`}
-              sub={`${fmtM(forecastDerived.impliedExitValue)} exit at ${f.revenueMultiple}× year-${f.yearsToExit} ARR`}
-              tone={forecastTone}
-            />
+            <ScenarioIrrCard scenarios={scenarios} targetIrr={f.targetIrr} revenueMultiple={f.revenueMultiple} yearsToExit={f.yearsToExit} />
             <Metric icon={TrendingUp} label="Required MOIC" value={`${r.reqMoic.toFixed(1)}×`} sub={`for ${f.targetIrr}% IRR`} />
             <Metric icon={Target} label="Required Exit" value={fmtM(r.reqExit)} sub={`in ${f.yearsToExit} years`} />
             <Metric icon={PieChart} label="Investor Ownership" value={`${(r.ownership * 100).toFixed(1)}%`} sub="post-round" />
           </div>
+
+          <ValuationGapCard
+            requiredExit={r.reqExit}
+            forecastExit={forecastDerived.impliedExitValue}
+            gap={valuationGap}
+            gapPct={valuationGapPct}
+            status={valuationStatus}
+          />
+
 
           <div className={`rounded-xl border p-4 ${verdict.wrap}`}>
             <p className="text-[13px] font-semibold text-[#111827] leading-relaxed">{runwayPrefix}{verdict.headline}</p>
