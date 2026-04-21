@@ -9,6 +9,8 @@ import PlanSummary from "@/components/cashflow/PlanSummary";
 import { useAssumptions } from "@/lib/assumptions";
 import { computePlanSummary } from "@/lib/planSummary";
 import { derivedGrossMargin } from "@/lib/pricingStrategy";
+import { simulateCashflow, type CashflowResult } from "@/lib/cashflow";
+import { SCENARIOS } from "@/lib/forecast";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
