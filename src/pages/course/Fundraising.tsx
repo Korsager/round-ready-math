@@ -41,6 +41,29 @@ export default function CourseFundraising() {
 
   const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
   const plan = useMemo(() => computePlanSummary(assumptions), [assumptions]);
+
+  // Forecast-implied IRR: derived purely from the forecast + revenue multiple.
+  // Independent from targetMoic so users can compare goal vs. mechanical projection.
+  const base = useMemo(() => runScenario(assumptions.forecast, "base"), [assumptions.forecast]);
+  const forecastDerived = useMemo(() => {
+    const monthlyG = assumptions.forecast.monthlyGrowthRate / 100;
+    const annualG = Math.pow(1 + monthlyG, 12) - 1;
+    const monthsAvailable = Math.min(base.months.length - 1, 36);
+    const arrAt36 = base.months[monthsAvailable]?.arr ?? 0;
+    const yearsBeyond36 = Math.max(0, f.yearsToExit - 3);
+    const endingARR = f.yearsToExit <= 3
+      ? (base.months[Math.min(monthsAvailable, Math.max(0, Math.round(f.yearsToExit * 12)))]?.arr ?? 0)
+      : arrAt36 * Math.pow(1 + annualG, yearsBeyond36);
+    const revMult = f.revenueMultiple ?? 8;
+    const impliedExitValue = endingARR * revMult;
+    const impliedInvestorProceeds = impliedExitValue * r.ownership;
+    const impliedMoic = f.raise > 0 ? impliedInvestorProceeds / f.raise : 0;
+    const forecastImpliedIrr = f.yearsToExit > 0 && impliedMoic > 0
+      ? (Math.pow(impliedMoic, 1 / f.yearsToExit) - 1) * 100
+      : 0;
+    return { endingARR, impliedExitValue, impliedInvestorProceeds, impliedMoic, forecastImpliedIrr };
+  }, [base, f.revenueMultiple, f.raise, f.yearsToExit, f.targetIrr, r.ownership, assumptions.forecast.monthlyGrowthRate]);
+
   const runwayState: "red" | "amber" | "green" =
     plan.runwayMonth !== null && plan.runwayMonth <= plan.monthsUntilRaise
       ? "red"
