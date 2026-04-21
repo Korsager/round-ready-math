@@ -9,6 +9,8 @@ import PlanSummary from "@/components/cashflow/PlanSummary";
 import { useAssumptions } from "@/lib/assumptions";
 import { computePlanSummary } from "@/lib/planSummary";
 import { derivedGrossMargin } from "@/lib/pricingStrategy";
+import { simulateCashflow, type CashflowResult } from "@/lib/cashflow";
+import { SCENARIOS } from "@/lib/forecast";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
@@ -48,9 +50,36 @@ export default function CourseCashflow() {
   };
 
   const summary = useMemo(() => computePlanSummary(assumptions), [assumptions]);
-  const result = summary.cfBase;
+  const [scenario, setScenario] = useState<"bull" | "base" | "bear">("base");
 
+  // Per-scenario cashflow uses the same multipliers as forecast scenarios so
+  // the bull/base/bear runway numbers stay consistent with Revenue/Fundraising.
+  const scenarioResults = useMemo(() => {
+    const horizon = summary.horizonMonths;
+    const run = (key: "bull" | "base" | "bear"): CashflowResult => {
+      const s = SCENARIOS[key];
+      const adjForecast = {
+        ...assumptions.forecast,
+        monthlyGrowthRate: assumptions.forecast.monthlyGrowthRate * s.growthMult,
+        monthlyGrossChurnRate: assumptions.forecast.monthlyGrossChurnRate * s.churnMult,
+        monthlyDowngradeRate: assumptions.forecast.monthlyDowngradeRate * s.downMult,
+        monthlyExpansionRate: assumptions.forecast.monthlyExpansionRate * s.expMult,
+        hiringLagDays: assumptions.forecast.hiringLagDays * s.rampMult,
+      };
+      return simulateCashflow({ ...c, fundraiseAmount, forecast: adjForecast }, horizon);
+    };
+    return { bull: run("bull"), base: summary.cfBase, bear: run("bear") };
+  }, [assumptions.forecast, c, fundraiseAmount, summary.horizonMonths, summary.cfBase]);
+
+  const result = scenarioResults[scenario];
   const gmLocked = forecastOverrides.grossMarginLocked || !hasPricingGM;
+
+  const scenarioTabs: Array<{ key: "bull" | "base" | "bear"; label: string }> = [
+    { key: "bull", label: "Bull" },
+    { key: "base", label: "Base" },
+    { key: "bear", label: "Bear" },
+  ];
+  const defaultAliveLabel = (r: CashflowResult) => r.defaultAliveMonth ? `mo ${r.defaultAliveMonth}` : "not reached";
 
   return (
     <CourseLayout
@@ -108,6 +137,27 @@ export default function CourseCashflow() {
             </section>
 
             <div className="space-y-4 min-w-0">
+              <div className="bg-white rounded-xl border border-[#E5E7EB] p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-1 rounded-md bg-secondary p-0.5">
+                    {scenarioTabs.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setScenario(t.key)}
+                        className={`text-[12px] font-medium px-3 py-1 rounded ${
+                          scenario === t.key ? "bg-white text-[#111827] shadow-sm" : "text-[#6B7280] hover:text-[#111827]"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">
+                    Default-alive · bear: {defaultAliveLabel(scenarioResults.bear)} · base: {defaultAliveLabel(scenarioResults.base)} · bull: {defaultAliveLabel(scenarioResults.bull)}
+                  </div>
+                </div>
+              </div>
               <RunwayCards result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
               <CashflowChart result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
               <CashflowTable result={result} />

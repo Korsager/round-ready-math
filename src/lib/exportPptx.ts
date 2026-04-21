@@ -7,6 +7,7 @@ import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary, fmtPlanMoney } from "./planSummary";
 import { monthCalendar, planStartLabel } from "./dateAnchor";
 import { computePlanNarrative, type LinkStatus } from "./planNarrative";
+import { computePricingMaturity } from "./pricingMaturity";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -161,14 +162,15 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
 
   // ---------- Pricing slides (driven by user data) ----------
   const tierNames = pricing.tiers.map((t) => t.name || "—").join(" · ");
+  const maturity = computePricingMaturity(pricing);
   sectionSlide("Step 1", "Pricing strategy", [
     { label: "Value metric", value: pricing.valueMetric.name?.trim() || "—" },
     { label: "Pricing model", value: pricing.models.length ? pricing.models.join(", ") : "—" },
     { label: "Tiers", value: tierNames },
-    { label: "Annual discount", value: pricing.annualDiscountPct?.trim() ? `${pricing.annualDiscountPct}%` : "—" },
-  ], pricing.valueMetric.rationale?.trim()
+    { label: "Maturity score", value: `${maturity.score} / ${maturity.total}` },
+  ], `${maturity.verdict} ${pricing.valueMetric.rationale?.trim()
     || pricing.context.businessModel?.trim()
-    || "Pricing strategy is captured in the Pricing step. Full details follow.");
+    || "Pricing strategy is captured in the Pricing step. Full details follow."}`);
 
   // Tier detail slide
   const tierSlide = pres.addSlide();

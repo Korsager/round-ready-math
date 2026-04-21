@@ -7,6 +7,7 @@ import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary } from "./planSummary";
 import { monthCalendar, planStartLabel } from "./dateAnchor";
 import { computePlanNarrative, type LinkStatus } from "./planNarrative";
+import { computePricingMaturity } from "./pricingMaturity";
 
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 const fmtUsd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -237,6 +238,9 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
 
   labeledBlock("Anchoring notes", pricing.anchoringNotes);
   labeledBlock("Upgrade triggers", pricing.upgradeTriggers);
+  const maturity = computePricingMaturity(pricing);
+  row("Pricing maturity score", `${maturity.score} / ${maturity.total}`);
+  para(maturity.verdict);
   y += 6;
 
   // Fundraising

@@ -42,27 +42,43 @@ export default function CourseFundraising() {
   const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
   const plan = useMemo(() => computePlanSummary(assumptions), [assumptions]);
 
-  // Forecast-implied IRR: derived purely from the forecast + revenue multiple.
+  // Forecast-implied IRR per scenario: derived purely from the forecast + revenue multiple.
   // Independent from targetMoic so users can compare goal vs. mechanical projection.
-  const base = useMemo(() => runScenario(assumptions.forecast, "base"), [assumptions.forecast]);
-  const forecastDerived = useMemo(() => {
+  const scenarios = useMemo(() => {
     const monthlyG = assumptions.forecast.monthlyGrowthRate / 100;
-    const annualG = Math.pow(1 + monthlyG, 12) - 1;
-    const monthsAvailable = Math.min(base.months.length - 1, 36);
-    const arrAt36 = base.months[monthsAvailable]?.arr ?? 0;
-    const yearsBeyond36 = Math.max(0, f.yearsToExit - 3);
-    const endingARR = f.yearsToExit <= 3
-      ? (base.months[Math.min(monthsAvailable, Math.max(0, Math.round(f.yearsToExit * 12)))]?.arr ?? 0)
-      : arrAt36 * Math.pow(1 + annualG, yearsBeyond36);
     const revMult = f.revenueMultiple ?? 8;
-    const impliedExitValue = endingARR * revMult;
-    const impliedInvestorProceeds = impliedExitValue * r.ownership;
-    const impliedMoic = f.raise > 0 ? impliedInvestorProceeds / f.raise : 0;
-    const forecastImpliedIrr = f.yearsToExit > 0 && impliedMoic > 0
-      ? (Math.pow(impliedMoic, 1 / f.yearsToExit) - 1) * 100
-      : 0;
-    return { endingARR, impliedExitValue, impliedInvestorProceeds, impliedMoic, forecastImpliedIrr };
-  }, [base, f.revenueMultiple, f.raise, f.yearsToExit, f.targetIrr, r.ownership, assumptions.forecast.monthlyGrowthRate]);
+
+    const calc = (scenarioKey: "bull" | "base" | "bear") => {
+      const sim = runScenario(assumptions.forecast, scenarioKey);
+      const monthsAvailable = Math.min(sim.months.length - 1, 36);
+      const arrAt36 = sim.months[monthsAvailable]?.arr ?? 0;
+      // Scale per-scenario growth to extrapolate beyond 36 mo when needed.
+      const scenarioGrowthMult = scenarioKey === "bull" ? 1.5 : scenarioKey === "bear" ? 0.5 : 1.0;
+      const annualG = Math.pow(1 + monthlyG * scenarioGrowthMult, 12) - 1;
+      const yearsBeyond36 = Math.max(0, f.yearsToExit - 3);
+      const endingARR = f.yearsToExit <= 3
+        ? (sim.months[Math.min(monthsAvailable, Math.max(0, Math.round(f.yearsToExit * 12)))]?.arr ?? 0)
+        : arrAt36 * Math.pow(1 + annualG, yearsBeyond36);
+      const impliedExit = endingARR * revMult;
+      const proceeds = impliedExit * r.ownership;
+      const moic = f.raise > 0 ? proceeds / f.raise : 0;
+      const irr = f.yearsToExit > 0 && moic > 0
+        ? (Math.pow(moic, 1 / f.yearsToExit) - 1) * 100
+        : 0;
+      return { endingARR, impliedExit, proceeds, moic, irr };
+    };
+
+    return { bull: calc("bull"), base: calc("base"), bear: calc("bear") };
+  }, [assumptions.forecast, f.revenueMultiple, f.raise, f.yearsToExit, r.ownership]);
+
+  // Back-compat: the rest of the page reads `forecastDerived` for the base case.
+  const forecastDerived = useMemo(() => ({
+    endingARR: scenarios.base.endingARR,
+    impliedExitValue: scenarios.base.impliedExit,
+    impliedInvestorProceeds: scenarios.base.proceeds,
+    impliedMoic: scenarios.base.moic,
+    forecastImpliedIrr: scenarios.base.irr,
+  }), [scenarios.base]);
 
   const runwayState: "red" | "amber" | "green" =
     plan.runwayMonth !== null && plan.runwayMonth <= plan.monthsUntilRaise
@@ -93,30 +109,32 @@ export default function CourseFundraising() {
   const tone = (irr: number) =>
     irr >= f.targetIrr ? "text-emerald-600" : irr >= f.targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
   const verdictTone = tone(r.calcIrr);
-  const forecastTone = tone(forecastDerived.forecastImpliedIrr);
 
   const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
 
-  // Single source of truth: verdict tone, headline, and detail all derive from
-  // the same gap between forecast-implied IRR and the target. Prevents the
-  // green-headline / required>actual contradiction.
-  const irrGap = forecastDerived.forecastImpliedIrr - f.targetIrr;
-  const verdict = irrGap >= 0
+  // Single source of truth: the valuation gap between forecast-implied exit and
+  // required exit drives the verdict tone, headline, detail, AND the card
+  // colour below. Aligns the growth-rate comparison too.
+  const valuationGap = forecastDerived.impliedExitValue - r.reqExit;
+  const valuationGapPct = r.reqExit > 0 ? (valuationGap / r.reqExit) * 100 : 0;
+  const valuationStatus: "green" | "amber" | "red" =
+    valuationGap >= 0 ? "green" : valuationGapPct >= -20 ? "amber" : "red";
+  const verdict = valuationStatus === "green"
     ? {
         wrap: "border-emerald-200 bg-emerald-50",
         headline: "Your forecast supports the IRR investors need.",
-        detail: `Projected trajectory clears the ${f.targetIrr}% hurdle by ${irrGap.toFixed(1)} pts.`,
+        detail: `Forecast-implied exit ${fmtM(forecastDerived.impliedExitValue)} clears the ${fmtM(r.reqExit)} required for ${f.targetIrr}% IRR by ${fmtM(Math.abs(valuationGap))}.`,
       }
-    : irrGap >= -5
+    : valuationStatus === "amber"
       ? {
           wrap: "border-amber-200 bg-amber-50",
           headline: "Your forecast is close but short of investor hurdle.",
-          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle — tighten growth or revenue multiple to close it.`,
+          detail: `Forecast-implied exit ${fmtM(forecastDerived.impliedExitValue)} is ${Math.abs(valuationGapPct).toFixed(0)}% below the ${fmtM(r.reqExit)} required — tighten growth or revenue multiple to close it.`,
         }
       : {
           wrap: "border-red-200 bg-red-50",
           headline: "Your forecast does not support the IRR investors need.",
-          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle.`,
+          detail: `Forecast-implied exit ${fmtM(forecastDerived.impliedExitValue)} falls ${Math.abs(valuationGapPct).toFixed(0)}% short of the ${fmtM(r.reqExit)} required for ${f.targetIrr}% IRR.`,
         };
 
   const runwayPrefix = runwayState === "red"
@@ -217,17 +235,20 @@ export default function CourseFundraising() {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <Metric icon={Target} label="Target IRR" value={`${f.targetIrr}%`} sub="investor's hurdle" />
             <Metric icon={BarChart3} label="MOIC-implied IRR" value={`${r.calcIrr.toFixed(1)}%`} sub={`at ${f.targetMoic}× MOIC`} tone={verdictTone} />
-            <Metric
-              icon={LineChart}
-              label="Forecast-implied IRR"
-              value={`${forecastDerived.forecastImpliedIrr.toFixed(1)}%`}
-              sub={`${fmtM(forecastDerived.impliedExitValue)} exit at ${f.revenueMultiple}× year-${f.yearsToExit} ARR`}
-              tone={forecastTone}
-            />
+            <ScenarioIrrCard scenarios={scenarios} targetIrr={f.targetIrr} revenueMultiple={f.revenueMultiple} yearsToExit={f.yearsToExit} />
             <Metric icon={TrendingUp} label="Required MOIC" value={`${r.reqMoic.toFixed(1)}×`} sub={`for ${f.targetIrr}% IRR`} />
             <Metric icon={Target} label="Required Exit" value={fmtM(r.reqExit)} sub={`in ${f.yearsToExit} years`} />
             <Metric icon={PieChart} label="Investor Ownership" value={`${(r.ownership * 100).toFixed(1)}%`} sub="post-round" />
           </div>
+
+          <ValuationGapCard
+            requiredExit={r.reqExit}
+            forecastExit={forecastDerived.impliedExitValue}
+            gap={valuationGap}
+            gapPct={valuationGapPct}
+            status={valuationStatus}
+          />
+
 
           <div className={`rounded-xl border p-4 ${verdict.wrap}`}>
             <p className="text-[13px] font-semibold text-[#111827] leading-relaxed">{runwayPrefix}{verdict.headline}</p>
@@ -364,6 +385,95 @@ function Metric({ icon: Icon, label, value, sub, tone }: { icon: any; label: str
       </div>
       <div className={`text-[20px] font-semibold tabular-nums ${tone ?? "text-[#111827]"}`}>{value}</div>
       <div className="text-[11px] text-muted-foreground">{sub}</div>
+    </div>
+  );
+}
+
+interface Scenario { endingARR: number; impliedExit: number; proceeds: number; moic: number; irr: number; }
+
+function ScenarioIrrCard({
+  scenarios, targetIrr, revenueMultiple, yearsToExit,
+}: {
+  scenarios: { bull: Scenario; base: Scenario; bear: Scenario };
+  targetIrr: number;
+  revenueMultiple: number;
+  yearsToExit: number;
+}) {
+  const rows: Array<{ key: "bull" | "base" | "bear"; label: string; data: Scenario; barColor: string }> = [
+    { key: "bull", label: "Bull", data: scenarios.bull, barColor: "bg-emerald-500" },
+    { key: "base", label: "Base", data: scenarios.base, barColor: "bg-primary" },
+    { key: "bear", label: "Bear", data: scenarios.bear, barColor: "bg-red-500" },
+  ];
+  const maxIrr = Math.max(targetIrr, scenarios.bull.irr, 1);
+  return (
+    <div className="bg-white rounded-xl border border-[#E5E7EB] p-3 sm:p-4 col-span-2 lg:col-span-1">
+      <div className="flex items-center gap-2 mb-2">
+        <LineChart size={14} className="text-primary" />
+        <span className="text-[11px] text-muted-foreground">Forecast-implied IRR</span>
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((row) => {
+          const irr = row.data.irr;
+          const tone = irr >= targetIrr ? "text-emerald-600" : irr >= targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
+          const widthPct = Math.max(0, Math.min(100, (irr / maxIrr) * 100));
+          const targetPct = Math.max(0, Math.min(100, (targetIrr / maxIrr) * 100));
+          return (
+            <div key={row.key} className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-8 shrink-0">{row.label}</span>
+              <div className="relative flex-1 h-3 bg-secondary rounded-sm overflow-hidden">
+                <div className={`absolute inset-y-0 left-0 ${row.barColor} rounded-sm`} style={{ width: `${widthPct}%` }} />
+                <div className="absolute inset-y-0 w-px bg-foreground/60" style={{ left: `${targetPct}%` }} />
+              </div>
+              <span className={`text-[12px] font-semibold tabular-nums w-12 text-right ${tone}`}>{irr.toFixed(1)}%</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-muted-foreground mt-2">
+        At {revenueMultiple}× year-{yearsToExit} ARR · target line = {targetIrr}%
+      </div>
+    </div>
+  );
+}
+
+function ValuationGapCard({
+  requiredExit, forecastExit, gap, gapPct, status,
+}: { requiredExit: number; forecastExit: number; gap: number; gapPct: number; status: "green" | "amber" | "red" }) {
+  const fmtMoney = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
+  const palette = {
+    green: { wrap: "border-emerald-200 bg-emerald-50", chip: "bg-emerald-100 text-emerald-700", icon: CheckCircle2, iconClass: "text-emerald-600", verdict: "Forecast supports target" },
+    amber: { wrap: "border-amber-200 bg-amber-50", chip: "bg-amber-100 text-amber-700", icon: AlertTriangle, iconClass: "text-amber-600", verdict: "Forecast is short" },
+    red:   { wrap: "border-red-200 bg-red-50", chip: "bg-red-100 text-red-700", icon: AlertCircle, iconClass: "text-destructive", verdict: "Forecast falls well short" },
+  }[status];
+  const Icon = palette.icon;
+  const sign = gap >= 0 ? "+" : "−";
+  return (
+    <div className={`rounded-xl border p-4 ${palette.wrap}`}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[13px] font-semibold text-[#111827]">Valuation gap</h3>
+        <span className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full ${palette.chip}`}>
+          {status === "green" ? "On track" : status === "amber" ? "Tight" : "Off track"}
+        </span>
+      </div>
+      <dl className="space-y-1.5 text-[12px]">
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Required exit (for target IRR)</dt>
+          <dd className="tabular-nums font-semibold text-[#111827]">{fmtMoney(requiredExit)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Forecast-implied exit (base)</dt>
+          <dd className="tabular-nums font-semibold text-[#111827]">{fmtMoney(forecastExit)}</dd>
+        </div>
+        <div className="border-t border-foreground/10 my-1.5" />
+        <div className="flex justify-between items-center">
+          <dt className="font-semibold text-[#111827]">Gap</dt>
+          <dd className={`flex items-center gap-1.5 tabular-nums font-bold ${palette.iconClass}`}>
+            <Icon size={14} />
+            {sign}{fmtMoney(Math.abs(gap))} ({gap >= 0 ? "+" : ""}{gapPct.toFixed(0)}%)
+            <span className="text-[11px] font-normal ml-1">{palette.verdict}</span>
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }
