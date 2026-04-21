@@ -7,6 +7,8 @@ interface Props {
   result: CashflowResult;
   monthsUntilRaise: number;
   planStartDate: string;
+  /** Derived CAC payback (months). Null when ARPU or margin is unknown. */
+  cacPaybackMonths: number | null;
 }
 
 function runwayLabel(result: CashflowResult): { value: string; tone: "good" | "warn" | "bad" } {
@@ -16,17 +18,27 @@ function runwayLabel(result: CashflowResult): { value: string; tone: "good" | "w
   return { value: `${result.runwayMonth} mo`, tone: "bad" };
 }
 
+function paybackCard(months: number | null): { value: string; sub: string; tone: "good" | "warn" | "bad" } {
+  if (months === null) {
+    return { value: "—", sub: "Set CAC, ARPU & margin", tone: "warn" };
+  }
+  if (months <= 12) return { value: `${months.toFixed(1)} mo`, sub: "Efficient acquisition", tone: "good" };
+  if (months <= 18) return { value: `${months.toFixed(1)} mo`, sub: "Acceptable, watch burn", tone: "warn" };
+  return { value: `${months.toFixed(1)} mo`, sub: "Needs runway ≥ payback period", tone: "bad" };
+}
+
 const toneStyles = {
   good: { bg: "#D1FAE5", text: "#065F46", border: "#10B981" },
   warn: { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B" },
   bad: { bg: "#FEE2E2", text: "#991B1B", border: "#EF4444" },
 };
 
-export default function RunwayCards({ result, monthsUntilRaise, planStartDate }: Props) {
+export default function RunwayCards({ result, monthsUntilRaise, planStartDate, cacPaybackMonths }: Props) {
   const runway = runwayLabel(result);
   const cashAtRaise = result.months[Math.min(monthsUntilRaise, result.months.length - 1)]?.cashBalance ?? 0;
   const outBeforeRaise = result.runwayMonth !== null && result.runwayMonth < monthsUntilRaise;
   const cal = (m: number) => monthCalendar(planStartDate, m);
+  const payback = paybackCard(cacPaybackMonths);
 
   let verdictIcon = <CheckCircle2 size={20} className="text-[#10B981]" />;
   let verdictText = "Default-alive within 36 months — fundable trajectory";
@@ -48,8 +60,26 @@ export default function RunwayCards({ result, monthsUntilRaise, planStartDate }:
     verdictIcon = <AlertTriangle size={20} className="text-[#F59E0B]" />;
   }
 
+  // Article-quoted CAC-payback warning. Trips when payback is far longer than
+  // post-raise runway and the cashflow is already under stress.
+  const runwayPastRaise = result.runwayMonth !== null
+    ? result.runwayMonth - monthsUntilRaise
+    : null;
+  const runwayTight = verdictTone !== "good";
+  if (
+    cacPaybackMonths !== null &&
+    runwayPastRaise !== null &&
+    cacPaybackMonths > monthsUntilRaise + 6 &&
+    runwayTight
+  ) {
+    verdictIcon = <AlertTriangle size={20} className="text-[#F59E0B]" />;
+    verdictTone = verdictTone === "bad" ? "bad" : "warn";
+    verdictText = `Your CAC payback is ${cacPaybackMonths.toFixed(1)} months but runway only extends ${Math.max(0, runwayPastRaise)} months past your raise. Customers won't be profitable in time — either cut CAC, raise sooner, or extend runway.`;
+  }
+
   const cards = [
     { label: "Runway", value: runway.value, sub: result.runwayMonth === null ? "Never runs out" : `Out of cash month ${result.runwayMonth} (${cal(result.runwayMonth)})`, tone: runway.tone },
+    { label: "CAC payback", value: payback.value, sub: payback.sub, tone: payback.tone },
     { label: "Cash at month 36", value: fmtDollars(result.endingCash), sub: result.endingCash > 0 ? `As of ${cal(36)}` : "Underwater", tone: result.endingCash > 0 ? ("good" as const) : ("bad" as const) },
     { label: "Default-alive", value: result.defaultAliveMonth ? `Month ${result.defaultAliveMonth}` : "Not reached", sub: result.defaultAliveMonth ? cal(result.defaultAliveMonth) : "Within 36 months", tone: result.defaultAliveMonth ? ("good" as const) : ("warn" as const) },
   ];
@@ -58,7 +88,7 @@ export default function RunwayCards({ result, monthsUntilRaise, planStartDate }:
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => {
           const s = toneStyles[c.tone];
           return (
