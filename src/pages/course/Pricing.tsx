@@ -20,6 +20,7 @@ import {
   derivedStartingMRR,
   derivedMonthlyNewBookings,
 } from "@/lib/pricingStrategy";
+import { computePricingMaturity } from "@/lib/pricingMaturity";
 import { useAssumptions } from "@/lib/assumptions";
 
 const fmtUsd0 = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
