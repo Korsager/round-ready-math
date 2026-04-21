@@ -8,6 +8,7 @@ import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
 import UnitEconomicsCard from "@/components/forecast/UnitEconomicsCard";
 import PricingReconciliation from "@/components/forecast/PricingReconciliation";
+import MotionDefaultsCard from "@/components/forecast/MotionDefaultsCard";
 import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
@@ -17,6 +18,7 @@ import {
   derivedStartingMRR,
   derivedMonthlyNewBookings,
 } from "@/lib/pricingStrategy";
+import { activeMotion, applyMotionDefaults, MOTION_PROFILES } from "@/lib/motionProfiles";
 import { computeUnitEconomics } from "@/lib/unitEconomics";
 
 const fmtUsd = (v: number) => {
