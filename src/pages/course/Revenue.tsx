@@ -264,6 +264,15 @@ export default function CourseRevenue() {
         </section>
 
         <div className="space-y-4 min-w-0">
+          <PricingReconciliation
+            pricing={pricing}
+            startingMRR={forecast.startingMRR}
+            monthlyNewBookings={forecast.monthlyNewBookings}
+            onEstimateMRR={(mrr) => {
+              setForecast({ ...forecast, startingMRR: mrr });
+              setForecastOverrides({ ...forecastOverrides, startingMRRLocked: true });
+            }}
+          />
           {!bannerDismissed && isFreshSeed && (
             <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
               <Sparkles size={16} className="text-primary mt-0.5 shrink-0" />
