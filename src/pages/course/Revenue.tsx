@@ -7,6 +7,7 @@ import StatCards from "@/components/forecast/StatCards";
 import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
 import UnitEconomicsCard from "@/components/forecast/UnitEconomicsCard";
+import PricingReconciliation from "@/components/forecast/PricingReconciliation";
 import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
