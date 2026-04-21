@@ -201,3 +201,37 @@ export function blendedGrossMargin(pricing: PricingStrategy): number {
 export function derivedGrossMargin(pricing: PricingStrategy): number {
   return blendedGrossMargin(pricing);
 }
+
+// Blog-default weighted ARPA: Starter 20% / Pro 65% / Enterprise 15%.
+// "Custom"/empty Enterprise is excluded and Starter+Pro are renormalised to 23/77.
+// Returns null when no tier has a numeric price.
+export function deriveBlendedARPA(s: PricingStrategy): number | null {
+  const tiers = s.tiers;
+  const prices = tiers.map((t) => {
+    // Prefer explicit numeric companion, else parse the display string.
+    const fromNum = Number.isFinite(t.monthlyPriceNum) && t.monthlyPriceNum > 0 ? t.monthlyPriceNum : 0;
+    return fromNum > 0 ? fromNum : parseMonthlyPrice(t.monthlyPrice);
+  });
+  const [pStarter, pPro, pEnt] = prices;
+  const hasStarter = pStarter > 0;
+  const hasPro = pPro > 0;
+  const hasEnt = pEnt > 0;
+  if (!hasStarter && !hasPro && !hasEnt) return null;
+
+  // Default mix per the article's "60–70% in Pro" framing.
+  let wStarter = 0.20, wPro = 0.65, wEnt = 0.15;
+  if (!hasEnt) {
+    // Renormalise Starter/Pro to 23/77 when Enterprise is Custom/empty.
+    wEnt = 0;
+    wStarter = 0.23;
+    wPro = 0.77;
+  }
+  // If Starter is also missing, push everything onto Pro (or remaining priced tier).
+  let weightedSum = 0;
+  let totalWeight = 0;
+  if (hasStarter) { weightedSum += pStarter * wStarter; totalWeight += wStarter; }
+  if (hasPro)     { weightedSum += pPro * wPro;         totalWeight += wPro; }
+  if (hasEnt)     { weightedSum += pEnt * wEnt;         totalWeight += wEnt; }
+  if (totalWeight <= 0) return null;
+  return weightedSum / totalWeight;
+}
