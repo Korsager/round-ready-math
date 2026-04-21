@@ -25,13 +25,7 @@ import { useAssumptions } from "@/lib/assumptions";
 
 const fmtUsd0 = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 
-const CHECKLIST_ITEMS = [
-  "We know which features our users value most",
-  "We have defined our value metric",
-  "Packaging is aligned to usage and outcomes",
-  "We've spoken to 20+ customers about willingness-to-pay",
-  "Pricing is reviewed at least monthly",
-];
+import { PRICING_CHECKLIST_ITEMS as CHECKLIST_ITEMS } from "@/lib/pricingMaturity";
 
 const STEPS = [
   { id: 0, title: "Your Business",     icon: Sparkles,        short: "Context" },
