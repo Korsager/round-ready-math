@@ -30,8 +30,8 @@ export default function PricingReconciliation({
   pricing, startingMRR, monthlyNewBookings, onEstimateMRR,
 }: PricingReconciliationProps) {
   const arpa = deriveBlendedARPA(pricing);
-  const tiers = pricing?.tiers ?? [];
-  const anyTier = tiers.some((t) => (t.monthlyPriceNum && t.monthlyPriceNum > 0) || /\d/.test(t.monthlyPrice ?? ""));
+  const tiers = pricing?.tiers;
+  const anyTier = !!tiers && tiers.some((t) => (t.monthlyPriceNum && t.monthlyPriceNum > 0) || /\d/.test(t.monthlyPrice ?? ""));
   const onlyCustom = anyTier && arpa === null;
 
   // No pricing at all → soft nudge.
