@@ -11,7 +11,7 @@ const SummaryBoxes: React.FC<Props> = ({ results, inputs }) => {
   const yearsNeeded = isFinite(results.yearsNeededAtMoic) ? results.yearsNeededAtMoic.toFixed(1) : "∞";
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="rounded-xl border border-border bg-card p-5 shadow-card text-center">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
           MOIC Needed <TooltipIcon text="Multiple needed to hit target IRR in your chosen timeline." />
@@ -29,15 +29,6 @@ const SummaryBoxes: React.FC<Props> = ({ results, inputs }) => {
           {yearsNeeded}y
         </p>
         <p className="text-[10px] text-muted-foreground mt-1">at {inputs.targetMoic}x for {inputs.targetIrr}% IRR</p>
-      </div>
-      <div className="rounded-xl border border-border bg-card p-5 shadow-card text-center">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-          Max Hold Time <TooltipIcon text="Maximum years before IRR drops below target at your MOIC." />
-        </p>
-        <p className="text-2xl font-bold tabular-nums tracking-display">
-          {results.maxHoldYears > 0 ? `${results.maxHoldYears.toFixed(1)}y` : "N/A"}
-        </p>
-        <p className="text-[10px] text-muted-foreground mt-1">before IRR {"<"} {inputs.targetIrr}%</p>
       </div>
     </div>
   );

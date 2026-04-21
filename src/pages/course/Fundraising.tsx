@@ -9,7 +9,7 @@ import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import { useAssumptions } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
-import { requiredMonthlyGrowth } from "@/lib/forecast";
+import { requiredMonthlyGrowth, runScenario } from "@/lib/forecast";
 import { computePlanSummary, fmtPlanMoney } from "@/lib/planSummary";
 import { monthCalendar } from "@/lib/dateAnchor";
 
@@ -41,6 +41,29 @@ export default function CourseFundraising() {
 
   const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
   const plan = useMemo(() => computePlanSummary(assumptions), [assumptions]);
+
+  // Forecast-implied IRR: derived purely from the forecast + revenue multiple.
+  // Independent from targetMoic so users can compare goal vs. mechanical projection.
+  const base = useMemo(() => runScenario(assumptions.forecast, "base"), [assumptions.forecast]);
+  const forecastDerived = useMemo(() => {
+    const monthlyG = assumptions.forecast.monthlyGrowthRate / 100;
+    const annualG = Math.pow(1 + monthlyG, 12) - 1;
+    const monthsAvailable = Math.min(base.months.length - 1, 36);
+    const arrAt36 = base.months[monthsAvailable]?.arr ?? 0;
+    const yearsBeyond36 = Math.max(0, f.yearsToExit - 3);
+    const endingARR = f.yearsToExit <= 3
+      ? (base.months[Math.min(monthsAvailable, Math.max(0, Math.round(f.yearsToExit * 12)))]?.arr ?? 0)
+      : arrAt36 * Math.pow(1 + annualG, yearsBeyond36);
+    const revMult = f.revenueMultiple ?? 8;
+    const impliedExitValue = endingARR * revMult;
+    const impliedInvestorProceeds = impliedExitValue * r.ownership;
+    const impliedMoic = f.raise > 0 ? impliedInvestorProceeds / f.raise : 0;
+    const forecastImpliedIrr = f.yearsToExit > 0 && impliedMoic > 0
+      ? (Math.pow(impliedMoic, 1 / f.yearsToExit) - 1) * 100
+      : 0;
+    return { endingARR, impliedExitValue, impliedInvestorProceeds, impliedMoic, forecastImpliedIrr };
+  }, [base, f.revenueMultiple, f.raise, f.yearsToExit, f.targetIrr, r.ownership, assumptions.forecast.monthlyGrowthRate]);
+
   const runwayState: "red" | "amber" | "green" =
     plan.runwayMonth !== null && plan.runwayMonth <= plan.monthsUntilRaise
       ? "red"
@@ -70,22 +93,35 @@ export default function CourseFundraising() {
   const tone = (irr: number) =>
     irr >= f.targetIrr ? "text-emerald-600" : irr >= f.targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
   const verdictTone = tone(r.calcIrr);
-  const impliedTone = tone(implied.impliedIrrPct);
+  const forecastTone = tone(forecastDerived.forecastImpliedIrr);
 
   const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
 
-  const baseNarrative = (() => {
-    if (implied.impliedIrrPct >= f.targetIrr) {
-      return `Your forecast supports the IRR investors need. A ${f.targetIrr}% fund hurdle is achievable at your projected trajectory.`;
-    }
-    if (implied.basis === "revenue") {
-      return `At ${f.revenueMultiple}× year-${f.yearsToExit} ARR, your forecast implies ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% investors target. Either growth needs to be higher, exit timing sooner, or the multiple assumption optimistic.`;
-    }
-    return `Pricing on dilution, your claimed ${f.targetMoic}× MOIC delivers ${implied.impliedIrrPct.toFixed(1)}% IRR vs the ${f.targetIrr}% target. Investors will ask for a sharper story — what exit buyer pays this, and when?`;
-  })();
-  const narrative = runwayState === "red"
-    ? `Funding gap: this raise doesn't cover the runway needed to execute the plan. ${baseNarrative}`
-    : baseNarrative;
+  // Single source of truth: verdict tone, headline, and detail all derive from
+  // the same gap between forecast-implied IRR and the target. Prevents the
+  // green-headline / required>actual contradiction.
+  const irrGap = forecastDerived.forecastImpliedIrr - f.targetIrr;
+  const verdict = irrGap >= 0
+    ? {
+        wrap: "border-emerald-200 bg-emerald-50",
+        headline: "Your forecast supports the IRR investors need.",
+        detail: `Projected trajectory clears the ${f.targetIrr}% hurdle by ${irrGap.toFixed(1)} pts.`,
+      }
+    : irrGap >= -5
+      ? {
+          wrap: "border-amber-200 bg-amber-50",
+          headline: "Your forecast is close but short of investor hurdle.",
+          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle — tighten growth or revenue multiple to close it.`,
+        }
+      : {
+          wrap: "border-red-200 bg-red-50",
+          headline: "Your forecast does not support the IRR investors need.",
+          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle.`,
+        };
+
+  const runwayPrefix = runwayState === "red"
+    ? "Funding gap: this raise doesn't cover the runway needed to execute the plan. "
+    : "";
 
   return (
     <CourseLayout
@@ -184,19 +220,18 @@ export default function CourseFundraising() {
             <Metric
               icon={LineChart}
               label="Forecast-implied IRR"
-              value={`${implied.impliedIrrPct.toFixed(1)}%`}
-              sub={implied.basis === "revenue"
-                ? `${fmtM(implied.impliedExitValue)} exit at ${f.revenueMultiple}× ARR`
-                : `${fmtM(implied.impliedExitValue)} exit (ownership)`}
-              tone={impliedTone}
+              value={`${forecastDerived.forecastImpliedIrr.toFixed(1)}%`}
+              sub={`${fmtM(forecastDerived.impliedExitValue)} exit at ${f.revenueMultiple}× year-${f.yearsToExit} ARR`}
+              tone={forecastTone}
             />
             <Metric icon={TrendingUp} label="Required MOIC" value={`${r.reqMoic.toFixed(1)}×`} sub={`for ${f.targetIrr}% IRR`} />
             <Metric icon={Target} label="Required Exit" value={fmtM(r.reqExit)} sub={`in ${f.yearsToExit} years`} />
             <Metric icon={PieChart} label="Investor Ownership" value={`${(r.ownership * 100).toFixed(1)}%`} sub="post-round" />
           </div>
 
-          <div className="rounded-xl border border-[#E5E7EB] bg-secondary/40 p-4">
-            <p className="text-[13px] text-[#374151] leading-relaxed">{narrative}</p>
+          <div className={`rounded-xl border p-4 ${verdict.wrap}`}>
+            <p className="text-[13px] font-semibold text-[#111827] leading-relaxed">{runwayPrefix}{verdict.headline}</p>
+            <p className="text-[12px] text-[#374151] leading-relaxed mt-1">{verdict.detail}</p>
             <p className="text-[12px] text-[#374151] mt-2">
               Target requires compounding MRR at <span className="font-semibold tabular-nums">{reqGrowth.toFixed(2)}%/mo</span> — your forecast assumes{" "}
               <span className={`font-semibold tabular-nums ${growthTone}`}>{actualGrowth.toFixed(2)}%/mo</span>.
