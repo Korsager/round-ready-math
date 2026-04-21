@@ -42,27 +42,43 @@ export default function CourseFundraising() {
   const implied = useMemo(() => computeImpliedIrr(assumptions), [assumptions]);
   const plan = useMemo(() => computePlanSummary(assumptions), [assumptions]);
 
-  // Forecast-implied IRR: derived purely from the forecast + revenue multiple.
+  // Forecast-implied IRR per scenario: derived purely from the forecast + revenue multiple.
   // Independent from targetMoic so users can compare goal vs. mechanical projection.
-  const base = useMemo(() => runScenario(assumptions.forecast, "base"), [assumptions.forecast]);
-  const forecastDerived = useMemo(() => {
+  const scenarios = useMemo(() => {
     const monthlyG = assumptions.forecast.monthlyGrowthRate / 100;
-    const annualG = Math.pow(1 + monthlyG, 12) - 1;
-    const monthsAvailable = Math.min(base.months.length - 1, 36);
-    const arrAt36 = base.months[monthsAvailable]?.arr ?? 0;
-    const yearsBeyond36 = Math.max(0, f.yearsToExit - 3);
-    const endingARR = f.yearsToExit <= 3
-      ? (base.months[Math.min(monthsAvailable, Math.max(0, Math.round(f.yearsToExit * 12)))]?.arr ?? 0)
-      : arrAt36 * Math.pow(1 + annualG, yearsBeyond36);
     const revMult = f.revenueMultiple ?? 8;
-    const impliedExitValue = endingARR * revMult;
-    const impliedInvestorProceeds = impliedExitValue * r.ownership;
-    const impliedMoic = f.raise > 0 ? impliedInvestorProceeds / f.raise : 0;
-    const forecastImpliedIrr = f.yearsToExit > 0 && impliedMoic > 0
-      ? (Math.pow(impliedMoic, 1 / f.yearsToExit) - 1) * 100
-      : 0;
-    return { endingARR, impliedExitValue, impliedInvestorProceeds, impliedMoic, forecastImpliedIrr };
-  }, [base, f.revenueMultiple, f.raise, f.yearsToExit, f.targetIrr, r.ownership, assumptions.forecast.monthlyGrowthRate]);
+
+    const calc = (scenarioKey: "bull" | "base" | "bear") => {
+      const sim = runScenario(assumptions.forecast, scenarioKey);
+      const monthsAvailable = Math.min(sim.months.length - 1, 36);
+      const arrAt36 = sim.months[monthsAvailable]?.arr ?? 0;
+      // Scale per-scenario growth to extrapolate beyond 36 mo when needed.
+      const scenarioGrowthMult = scenarioKey === "bull" ? 1.5 : scenarioKey === "bear" ? 0.5 : 1.0;
+      const annualG = Math.pow(1 + monthlyG * scenarioGrowthMult, 12) - 1;
+      const yearsBeyond36 = Math.max(0, f.yearsToExit - 3);
+      const endingARR = f.yearsToExit <= 3
+        ? (sim.months[Math.min(monthsAvailable, Math.max(0, Math.round(f.yearsToExit * 12)))]?.arr ?? 0)
+        : arrAt36 * Math.pow(1 + annualG, yearsBeyond36);
+      const impliedExit = endingARR * revMult;
+      const proceeds = impliedExit * r.ownership;
+      const moic = f.raise > 0 ? proceeds / f.raise : 0;
+      const irr = f.yearsToExit > 0 && moic > 0
+        ? (Math.pow(moic, 1 / f.yearsToExit) - 1) * 100
+        : 0;
+      return { endingARR, impliedExit, proceeds, moic, irr };
+    };
+
+    return { bull: calc("bull"), base: calc("base"), bear: calc("bear") };
+  }, [assumptions.forecast, f.revenueMultiple, f.raise, f.yearsToExit, r.ownership]);
+
+  // Back-compat: the rest of the page reads `forecastDerived` for the base case.
+  const forecastDerived = useMemo(() => ({
+    endingARR: scenarios.base.endingARR,
+    impliedExitValue: scenarios.base.impliedExit,
+    impliedInvestorProceeds: scenarios.base.proceeds,
+    impliedMoic: scenarios.base.moic,
+    forecastImpliedIrr: scenarios.base.irr,
+  }), [scenarios.base]);
 
   const runwayState: "red" | "amber" | "green" =
     plan.runwayMonth !== null && plan.runwayMonth <= plan.monthsUntilRaise
