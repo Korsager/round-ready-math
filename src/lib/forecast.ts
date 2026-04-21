@@ -12,6 +12,8 @@ export interface ForecastInputs {
   cac: number;                  // $ to acquire one customer
   cacPaybackMonths: number;     // target payback period for one customer
   blendedArpu: number;          // $/customer/month — auto-derived from pricing or manual
+  /** Optional — display only, used by the Pricing→Revenue reconciliation panel. */
+  customerCount?: number;
 }
 
 
