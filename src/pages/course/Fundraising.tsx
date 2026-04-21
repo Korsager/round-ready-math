@@ -9,7 +9,7 @@ import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import { useAssumptions } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
-import { requiredMonthlyGrowth } from "@/lib/forecast";
+import { requiredMonthlyGrowth, runScenario } from "@/lib/forecast";
 import { computePlanSummary, fmtPlanMoney } from "@/lib/planSummary";
 import { monthCalendar } from "@/lib/dateAnchor";
 
