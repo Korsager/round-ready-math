@@ -389,3 +389,92 @@ function Metric({ icon: Icon, label, value, sub, tone }: { icon: any; label: str
     </div>
   );
 }
+
+interface Scenario { endingARR: number; impliedExit: number; proceeds: number; moic: number; irr: number; }
+
+function ScenarioIrrCard({
+  scenarios, targetIrr, revenueMultiple, yearsToExit,
+}: {
+  scenarios: { bull: Scenario; base: Scenario; bear: Scenario };
+  targetIrr: number;
+  revenueMultiple: number;
+  yearsToExit: number;
+}) {
+  const rows: Array<{ key: "bull" | "base" | "bear"; label: string; data: Scenario; barColor: string }> = [
+    { key: "bull", label: "Bull", data: scenarios.bull, barColor: "bg-emerald-500" },
+    { key: "base", label: "Base", data: scenarios.base, barColor: "bg-primary" },
+    { key: "bear", label: "Bear", data: scenarios.bear, barColor: "bg-red-500" },
+  ];
+  const maxIrr = Math.max(targetIrr, scenarios.bull.irr, 1);
+  return (
+    <div className="bg-white rounded-xl border border-[#E5E7EB] p-3 sm:p-4 col-span-2 lg:col-span-1">
+      <div className="flex items-center gap-2 mb-2">
+        <LineChart size={14} className="text-primary" />
+        <span className="text-[11px] text-muted-foreground">Forecast-implied IRR</span>
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((row) => {
+          const irr = row.data.irr;
+          const tone = irr >= targetIrr ? "text-emerald-600" : irr >= targetIrr * 0.7 ? "text-amber-600" : "text-destructive";
+          const widthPct = Math.max(0, Math.min(100, (irr / maxIrr) * 100));
+          const targetPct = Math.max(0, Math.min(100, (targetIrr / maxIrr) * 100));
+          return (
+            <div key={row.key} className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-8 shrink-0">{row.label}</span>
+              <div className="relative flex-1 h-3 bg-secondary rounded-sm overflow-hidden">
+                <div className={`absolute inset-y-0 left-0 ${row.barColor} rounded-sm`} style={{ width: `${widthPct}%` }} />
+                <div className="absolute inset-y-0 w-px bg-foreground/60" style={{ left: `${targetPct}%` }} />
+              </div>
+              <span className={`text-[12px] font-semibold tabular-nums w-12 text-right ${tone}`}>{irr.toFixed(1)}%</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-muted-foreground mt-2">
+        At {revenueMultiple}× year-{yearsToExit} ARR · target line = {targetIrr}%
+      </div>
+    </div>
+  );
+}
+
+function ValuationGapCard({
+  requiredExit, forecastExit, gap, gapPct, status,
+}: { requiredExit: number; forecastExit: number; gap: number; gapPct: number; status: "green" | "amber" | "red" }) {
+  const fmtMoney = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
+  const palette = {
+    green: { wrap: "border-emerald-200 bg-emerald-50", chip: "bg-emerald-100 text-emerald-700", icon: CheckCircle2, iconClass: "text-emerald-600", verdict: "Forecast supports target" },
+    amber: { wrap: "border-amber-200 bg-amber-50", chip: "bg-amber-100 text-amber-700", icon: AlertTriangle, iconClass: "text-amber-600", verdict: "Forecast is short" },
+    red:   { wrap: "border-red-200 bg-red-50", chip: "bg-red-100 text-red-700", icon: AlertCircle, iconClass: "text-destructive", verdict: "Forecast falls well short" },
+  }[status];
+  const Icon = palette.icon;
+  const sign = gap >= 0 ? "+" : "−";
+  return (
+    <div className={`rounded-xl border p-4 ${palette.wrap}`}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[13px] font-semibold text-[#111827]">Valuation gap</h3>
+        <span className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full ${palette.chip}`}>
+          {status === "green" ? "On track" : status === "amber" ? "Tight" : "Off track"}
+        </span>
+      </div>
+      <dl className="space-y-1.5 text-[12px]">
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Required exit (for target IRR)</dt>
+          <dd className="tabular-nums font-semibold text-[#111827]">{fmtMoney(requiredExit)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Forecast-implied exit (base)</dt>
+          <dd className="tabular-nums font-semibold text-[#111827]">{fmtMoney(forecastExit)}</dd>
+        </div>
+        <div className="border-t border-foreground/10 my-1.5" />
+        <div className="flex justify-between items-center">
+          <dt className="font-semibold text-[#111827]">Gap</dt>
+          <dd className={`flex items-center gap-1.5 tabular-nums font-bold ${palette.iconClass}`}>
+            <Icon size={14} />
+            {sign}{fmtMoney(Math.abs(gap))} ({gap >= 0 ? "+" : ""}{gapPct.toFixed(0)}%)
+            <span className="text-[11px] font-normal ml-1">{palette.verdict}</span>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
