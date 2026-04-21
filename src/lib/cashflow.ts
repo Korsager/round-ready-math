@@ -33,6 +33,12 @@ export function simulateCashflow(inputs: CashflowInputs, horizon = 36): Cashflow
   const gm = inputs.grossMargin / 100;
   const opexG = inputs.opexGrowthRate / 100;
 
+  // S&M load from CAC: cost = CAC × new customers acquired this month.
+  // New customers/mo = monthlyNewBookings (in $) / blendedArpu (in $/customer/mo).
+  // Defaults guard against divide-by-zero on legacy saves.
+  const arpu = inputs.forecast.blendedArpu > 0 ? inputs.forecast.blendedArpu : 0;
+  const cac = inputs.forecast.cac > 0 ? inputs.forecast.cac : 0;
+
   const months: MonthlyCash[] = [];
   let cash = inputs.startingCash;
   let runwayMonth: number | null = null;
@@ -41,7 +47,11 @@ export function simulateCashflow(inputs: CashflowInputs, horizon = 36): Cashflow
   for (let t = 0; t <= horizon; t++) {
     const revenue = revenueMonths[t].mrr;
     const grossProfit = revenue * gm;
-    const opex = inputs.startingBurn * Math.pow(1 + opexG, t);
+    const baseOpex = inputs.startingBurn * Math.pow(1 + opexG, t);
+    // CAC cost scales with the new bookings the forecast already produces.
+    const newCustomers = arpu > 0 ? revenueMonths[t].newBookings / arpu : 0;
+    const sAndM = newCustomers * cac;
+    const opex = baseOpex + sAndM;
     const netBurn = opex - grossProfit;
     const fundraiseInflow = t === inputs.monthsUntilRaise ? inputs.fundraiseAmount : 0;
 
