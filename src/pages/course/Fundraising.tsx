@@ -220,11 +220,9 @@ export default function CourseFundraising() {
             <Metric
               icon={LineChart}
               label="Forecast-implied IRR"
-              value={`${implied.impliedIrrPct.toFixed(1)}%`}
-              sub={implied.basis === "revenue"
-                ? `${fmtM(implied.impliedExitValue)} exit at ${f.revenueMultiple}× ARR`
-                : `${fmtM(implied.impliedExitValue)} exit (ownership)`}
-              tone={impliedTone}
+              value={`${forecastDerived.forecastImpliedIrr.toFixed(1)}%`}
+              sub={`${fmtM(forecastDerived.impliedExitValue)} exit at ${f.revenueMultiple}× year-${f.yearsToExit} ARR`}
+              tone={forecastTone}
             />
             <Metric icon={TrendingUp} label="Required MOIC" value={`${r.reqMoic.toFixed(1)}×`} sub={`for ${f.targetIrr}% IRR`} />
             <Metric icon={Target} label="Required Exit" value={fmtM(r.reqExit)} sub={`in ${f.yearsToExit} years`} />
