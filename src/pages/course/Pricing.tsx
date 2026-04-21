@@ -539,7 +539,8 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
 
         <section>
           <h4 className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">Pricing Maturity Checklist</h4>
-          <div className="space-y-2">
+          <PricingMaturityScore checklist={s.checklist} />
+          <div className="space-y-2 mt-4">
             {CHECKLIST_ITEMS.map((item) => (
               <label key={item} className="flex items-start gap-2 text-sm cursor-pointer">
                 <Checkbox checked={!!s.checklist[item]} onCheckedChange={() => toggleCheck(item)} className="mt-0.5" />
