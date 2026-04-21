@@ -243,6 +243,8 @@ export default function CourseFundraising() {
           </div>
 
           <IrrGrid targetIrr={f.targetIrr} userMoic={f.targetMoic} userYears={f.yearsToExit} />
+
+          <ValuationGapCard
             requiredExit={r.reqExit}
             forecastExit={forecastDerived.impliedExitValue}
             gap={valuationGap}
