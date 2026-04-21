@@ -113,26 +113,29 @@ export default function CourseFundraising() {
 
   const revenueDisabled = f.valuationMethod === "ownership" || (f.valuationMethod === "auto" && implied.basis === "ownership");
 
-  // Single source of truth: verdict tone, headline, and detail all derive from
-  // the same gap between forecast-implied IRR and the target. Prevents the
-  // green-headline / required>actual contradiction.
-  const irrGap = forecastDerived.forecastImpliedIrr - f.targetIrr;
-  const verdict = irrGap >= 0
+  // Single source of truth: the valuation gap between forecast-implied exit and
+  // required exit drives the verdict tone, headline, detail, AND the card
+  // colour below. Aligns the growth-rate comparison too.
+  const valuationGap = forecastDerived.impliedExitValue - r.reqExit;
+  const valuationGapPct = r.reqExit > 0 ? (valuationGap / r.reqExit) * 100 : 0;
+  const valuationStatus: "green" | "amber" | "red" =
+    valuationGap >= 0 ? "green" : valuationGapPct >= -20 ? "amber" : "red";
+  const verdict = valuationStatus === "green"
     ? {
         wrap: "border-emerald-200 bg-emerald-50",
         headline: "Your forecast supports the IRR investors need.",
-        detail: `Projected trajectory clears the ${f.targetIrr}% hurdle by ${irrGap.toFixed(1)} pts.`,
+        detail: `Forecast-implied exit ${fmtM(forecastDerived.impliedExitValue)} clears the ${fmtM(r.reqExit)} required for ${f.targetIrr}% IRR by ${fmtM(Math.abs(valuationGap))}.`,
       }
-    : irrGap >= -5
+    : valuationStatus === "amber"
       ? {
           wrap: "border-amber-200 bg-amber-50",
           headline: "Your forecast is close but short of investor hurdle.",
-          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle — tighten growth or revenue multiple to close it.`,
+          detail: `Forecast-implied exit ${fmtM(forecastDerived.impliedExitValue)} is ${Math.abs(valuationGapPct).toFixed(0)}% below the ${fmtM(r.reqExit)} required — tighten growth or revenue multiple to close it.`,
         }
       : {
           wrap: "border-red-200 bg-red-50",
           headline: "Your forecast does not support the IRR investors need.",
-          detail: `Projected trajectory is ${Math.abs(irrGap).toFixed(1)} pts below the ${f.targetIrr}% hurdle.`,
+          detail: `Forecast-implied exit ${fmtM(forecastDerived.impliedExitValue)} falls ${Math.abs(valuationGapPct).toFixed(0)}% short of the ${fmtM(r.reqExit)} required for ${f.targetIrr}% IRR.`,
         };
 
   const runwayPrefix = runwayState === "red"
