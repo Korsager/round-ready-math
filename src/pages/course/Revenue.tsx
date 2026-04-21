@@ -1,35 +1,43 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles, AlertTriangle, X, Lock, Unlock } from "lucide-react";
+import { toast } from "sonner";
 import CourseLayout from "@/components/course/CourseLayout";
 import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import StatCards from "@/components/forecast/StatCards";
 import ForecastChart from "@/components/forecast/ForecastChart";
 import MatrixChart from "@/components/forecast/MatrixChart";
+import UnitEconomicsCard from "@/components/forecast/UnitEconomicsCard";
 import { Button } from "@/components/ui/button";
 import { useAssumptions } from "@/lib/assumptions";
 import { runScenario, deriveAnnualNRR, type ForecastInputs } from "@/lib/forecast";
 import {
+  blendedARPUWithAnnual,
   deriveRevenueFromPricing,
   derivedStartingMRR,
   derivedMonthlyNewBookings,
 } from "@/lib/pricingStrategy";
+import { computeUnitEconomics } from "@/lib/unitEconomics";
 
 const fmtUsd = (v: number) => {
   const n = Math.round(v);
   return n < 0 ? `-$${Math.abs(n).toLocaleString("en-US")}` : `$${n.toLocaleString("en-US")}`;
 };
+const fmtUsd2 = (v: number) => `$${v.toFixed(2)}`;
 const fmtPct = (digits = 1) => (v: number) => `${v.toFixed(digits)}%`;
 const fmtNum = (suffix = "") => (v: number) => `${v.toLocaleString("en-US")}${suffix}`;
+const fmtCount = (v: number) =>
+  v >= 100 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1);
 
 export default function CourseRevenue() {
   const {
     assumptions, setForecast, seedForecast, clearForecastEditedFlag, setForecastOverrides,
   } = useAssumptions();
-  const { forecast, forecastManuallyEdited, pricing, forecastOverrides } = assumptions;
+  const { forecast, forecastManuallyEdited, pricing, forecastOverrides, cashflow } = assumptions;
 
   // Pricing-derived seeds — kept in sync live whenever pricing changes.
   const seedMRR = useMemo(() => derivedStartingMRR(pricing), [pricing]);
   const seedBookings = useMemo(() => derivedMonthlyNewBookings(pricing), [pricing]);
+  const seedArpu = useMemo(() => blendedARPUWithAnnual(pricing), [pricing]);
   const derivedFromPricing = useMemo(() => deriveRevenueFromPricing(pricing), [pricing]);
   const tierCount = derivedFromPricing.perTier.filter((t) => t.mrrContribution > 0).length;
 
@@ -50,6 +58,27 @@ export default function CourseRevenue() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedBookings, forecastOverrides.newBookingsLocked]);
+
+  // Phase 2: ARPU auto-resync (per the user-chosen "Auto-resync, show toast" UX).
+  // Whenever the pricing-derived ARPU changes by more than 1¢, snap blendedArpu
+  // to the new value and toast. The user's manual override is intentionally
+  // clobbered — the live link from Pricing → Revenue wins.
+  const lastNotifiedArpuRef = useRef<number>(seedArpu);
+  useEffect(() => {
+    if (seedArpu <= 0) return;
+    const drift = Math.abs(forecast.blendedArpu - seedArpu);
+    if (drift > 0.01) {
+      seedForecast({ ...forecast, blendedArpu: seedArpu });
+      // Only toast when the new value is different from what we last announced.
+      if (Math.abs(lastNotifiedArpuRef.current - seedArpu) > 0.01) {
+        toast.success("ARPU re-derived from Pricing", {
+          description: `Now ${fmtUsd2(seedArpu)} / customer / month.`,
+        });
+        lastNotifiedArpuRef.current = seedArpu;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedArpu]);
 
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const isFreshSeed =
@@ -76,7 +105,6 @@ export default function CourseRevenue() {
   };
 
   const overrideMRR = () => {
-    // Switch to manual: keep the current derived value as the starting point.
     seedForecast({ ...forecast, startingMRR: seedMRR });
     setForecastOverrides({ ...forecastOverrides, startingMRRLocked: true });
   };
@@ -95,13 +123,34 @@ export default function CourseRevenue() {
 
   const [horizonMonths, setHorizonMonths] = useState<36 | 60>(36);
 
+  // Phase 2: pricing uplift toggle. Per user choice, this is delta-only —
+  // doesn't mutate the forecast. We compute a side-by-side scenario.
+  const [upliftPct, setUpliftPct] = useState<0 | 5 | 10 | 20>(0);
+
   const { bull, base, bear } = useMemo(() => ({
     bull: runScenario(forecast, "bull", horizonMonths),
     base: runScenario(forecast, "base", horizonMonths),
     bear: runScenario(forecast, "bear", horizonMonths),
   }), [forecast, horizonMonths]);
 
+  const upliftScenario = useMemo(() => {
+    if (upliftPct === 0) return null;
+    const upliftFactor = 1 + upliftPct / 100;
+    const upliftedForecast: ForecastInputs = {
+      ...forecast,
+      startingMRR: forecast.startingMRR * upliftFactor,
+      monthlyNewBookings: forecast.monthlyNewBookings * upliftFactor,
+      blendedArpu: forecast.blendedArpu * upliftFactor,
+    };
+    return runScenario(upliftedForecast, "base", horizonMonths);
+  }, [forecast, upliftPct, horizonMonths]);
+
   const nrr = useMemo(() => deriveAnnualNRR(forecast), [forecast]);
+  const ue = useMemo(
+    () => computeUnitEconomics(forecast, pricing, cashflow.grossMargin),
+    [forecast, pricing, cashflow.grossMargin],
+  );
+
   const forecastRef = useRef<HTMLDivElement>(null);
   const matrixRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +169,10 @@ export default function CourseRevenue() {
       };
     });
   };
+
+  // ARPU is "linked" to pricing iff pricing-derived ARPU exists AND the
+  // current forecast value matches it (auto-resync keeps these aligned).
+  const arpuLinkedToPricing = seedArpu > 0 && Math.abs(forecast.blendedArpu - seedArpu) <= 0.01;
 
   return (
     <CourseLayout
@@ -156,6 +209,49 @@ export default function CourseRevenue() {
               <AssumptionRow label="Monthly new bookings" value={forecast.monthlyNewBookings} format={fmtUsd} derived />
               <LockToggle locked={false} onClick={overrideBookings} label="Auto from pricing" actionLabel="Override" />
             </>
+          )}
+
+          {/* Phase 1 — Unit-economics inputs. Sit between bookings and growth. */}
+          <AssumptionRow
+            label="Blended ARPU"
+            description={arpuLinkedToPricing
+              ? "Auto-derived from your Pricing step (60% mix, 40% annual). Edit Pricing to change."
+              : "$/customer/month. Auto-derives from Pricing step when tiers are priced."}
+            value={forecast.blendedArpu}
+            format={fmtUsd}
+            onChange={(v) => setForecast({ ...forecast, blendedArpu: Math.max(0, v) })}
+          />
+          {arpuLinkedToPricing && (
+            <p className="-mt-1 mb-2 text-[10px] uppercase tracking-wide text-primary font-semibold">
+              Derived from Pricing
+            </p>
+          )}
+          <AssumptionRow
+            label="CAC"
+            description="Fully loaded cost to acquire one customer (sales + marketing)."
+            value={forecast.cac}
+            format={fmtUsd}
+            onChange={(v) => setForecast({ ...forecast, cac: Math.max(0, v) })}
+          />
+          <AssumptionRow
+            label="CAC payback"
+            description="Months until gross profit from a new customer covers the CAC. Healthy SaaS: 12 or less."
+            value={forecast.cacPaybackMonths}
+            format={fmtNum(" mo")}
+            onChange={(v) => setForecast({ ...forecast, cacPaybackMonths: Math.max(0, Math.round(v)) })}
+          />
+          <AssumptionRow
+            label="Implied new customers / mo"
+            description="monthlyNewBookings ÷ blended ARPU. Sanity-checks whether your sales velocity matches your bookings target."
+            value={ue.impliedNewCustomersPerMonth}
+            format={(v) => `${fmtCount(v)} / mo`}
+            derived
+          />
+          {ue.customerVelocityWarn && (
+            <div className="-mt-1 mb-2 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+              <AlertTriangle size={11} className="shrink-0 mt-0.5" />
+              <span>Acquiring &gt;1,000 customers/mo is heroic for early-stage. Tighten ARPU or revisit bookings.</span>
+            </div>
           )}
 
           <AssumptionRow label="Growth rate" value={forecast.monthlyGrowthRate} format={fmtPct(1)} onChange={(v) => setForecast({ ...forecast, monthlyGrowthRate: v })} />
@@ -210,6 +306,17 @@ export default function CourseRevenue() {
             </div>
           </div>
           <StatCards startingMRR={forecast.startingMRR} bull={bull} base={base} bear={bear} />
+
+          {/* Phase 2: pricing uplift toggle (delta-only — does not mutate forecast). */}
+          <PricingUpliftStrip
+            upliftPct={upliftPct}
+            setUpliftPct={setUpliftPct}
+            baseEndingARR={base.endingARR}
+            upliftEndingARR={upliftScenario?.endingARR ?? null}
+            grossMarginPct={ue.blendedGrossMarginPct}
+          />
+
+          <UnitEconomicsCard result={ue} cac={forecast.cac} />
           <ForecastChart ref={forecastRef} bull={bull} base={base} bear={bear} startingMRR={forecast.startingMRR} />
           <MatrixChart ref={matrixRef} inputs={forecast} onCellClick={onCellClick} horizonMonths={horizonMonths} />
         </div>
@@ -234,6 +341,62 @@ function LockToggle({
       >
         {actionLabel}
       </button>
+    </div>
+  );
+}
+
+function PricingUpliftStrip({
+  upliftPct, setUpliftPct, baseEndingARR, upliftEndingARR, grossMarginPct,
+}: {
+  upliftPct: 0 | 5 | 10 | 20;
+  setUpliftPct: (v: 0 | 5 | 10 | 20) => void;
+  baseEndingARR: number;
+  upliftEndingARR: number | null;
+  grossMarginPct: number;
+}) {
+  const arrDelta = upliftEndingARR !== null ? upliftEndingARR - baseEndingARR : 0;
+  const contributionDelta = arrDelta * (grossMarginPct / 100);
+  return (
+    <div className="bg-white rounded-xl border border-[#E5E7EB] p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div>
+          <h3 className="text-[13px] font-semibold text-[#111827]">Pricing uplift — what-if</h3>
+          <p className="text-[11px] text-muted-foreground">McKinsey: 1% better pricing ≈ 8% more operating profit. Toggle a price increase to see the delta.</p>
+        </div>
+        <div className="inline-flex rounded-md border border-[#E5E7EB] bg-white p-0.5 self-start">
+          {([0, 5, 10, 20] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setUpliftPct(p)}
+              className={`px-2.5 py-1 text-[11px] rounded ${upliftPct === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {p === 0 ? "Off" : `+${p}%`}
+            </button>
+          ))}
+        </div>
+      </div>
+      {upliftPct === 0 ? (
+        <p className="text-[11px] text-muted-foreground italic">Pick a level to compare against base ARR. Forecast itself stays untouched.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+          <UpliftCell label="Base ending ARR" value={baseEndingARR} />
+          <UpliftCell label={`+${upliftPct}% ending ARR`} value={upliftEndingARR ?? 0} highlight />
+          <UpliftCell label="Δ contribution" value={contributionDelta} delta />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UpliftCell({ label, value, highlight, delta }: { label: string; value: number; highlight?: boolean; delta?: boolean }) {
+  const sign = delta && value > 0 ? "+" : "";
+  return (
+    <div className={`rounded-lg border p-2.5 ${highlight ? "border-primary/30 bg-primary/5" : "border-[#E5E7EB] bg-white"}`}>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-[16px] font-semibold tabular-nums ${highlight ? "text-primary" : delta && value > 0 ? "text-emerald-600" : "text-[#111827]"}`}>
+        {sign}{fmtUsd(value)}
+      </div>
     </div>
   );
 }
