@@ -137,6 +137,27 @@ export default function CourseCashflow() {
             </section>
 
             <div className="space-y-4 min-w-0">
+              <div className="bg-white rounded-xl border border-[#E5E7EB] p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-1 rounded-md bg-secondary p-0.5">
+                    {scenarioTabs.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setScenario(t.key)}
+                        className={`text-[12px] font-medium px-3 py-1 rounded ${
+                          scenario === t.key ? "bg-white text-[#111827] shadow-sm" : "text-[#6B7280] hover:text-[#111827]"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">
+                    Default-alive · bear: {defaultAliveLabel(scenarioResults.bear)} · base: {defaultAliveLabel(scenarioResults.base)} · bull: {defaultAliveLabel(scenarioResults.bull)}
+                  </div>
+                </div>
+              </div>
               <RunwayCards result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
               <CashflowChart result={result} monthsUntilRaise={c.monthsUntilRaise} planStartDate={planStartDate} />
               <CashflowTable result={result} />
