@@ -25,13 +25,7 @@ import { useAssumptions } from "@/lib/assumptions";
 
 const fmtUsd0 = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 
-const CHECKLIST_ITEMS = [
-  "We know which features our users value most",
-  "We have defined our value metric",
-  "Packaging is aligned to usage and outcomes",
-  "We've spoken to 20+ customers about willingness-to-pay",
-  "Pricing is reviewed at least monthly",
-];
+import { PRICING_CHECKLIST_ITEMS as CHECKLIST_ITEMS } from "@/lib/pricingMaturity";
 
 const STEPS = [
   { id: 0, title: "Your Business",     icon: Sparkles,        short: "Context" },
@@ -539,7 +533,12 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
         </section>
 
         <section>
-          <h4 className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">Pricing Maturity Checklist</h4>
+          <div className="flex items-baseline justify-between mb-3">
+            <h4 className="text-sm font-semibold uppercase tracking-wider text-primary">Pricing Maturity Checklist</h4>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {CHECKLIST_ITEMS.reduce((n, i) => n + (s.checklist[i] ? 1 : 0), 0)} of {CHECKLIST_ITEMS.length} ready
+            </span>
+          </div>
           <PricingMaturityScore checklist={s.checklist} />
           <div className="space-y-2 mt-4">
             {CHECKLIST_ITEMS.map((item) => (

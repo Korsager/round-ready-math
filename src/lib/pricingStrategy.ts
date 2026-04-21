@@ -1,6 +1,7 @@
 // Pricing strategy types & helpers.
 // Persistence now lives in src/lib/assumptions.ts (single store). Callers should
 // read/write pricing via useAssumptions() rather than calling load/save here.
+import { migrateChecklist } from "./pricingMaturity";
 
 export type PricingModel = "Tiered" | "Usage-based" | "Freemium" | "Free Trial" | "Hybrid";
 
@@ -92,10 +93,12 @@ export function mergePricingStrategy(parsed: any): PricingStrategy {
   if (!parsed || typeof parsed !== "object") return blankPricingStrategy();
   const base = blankPricingStrategy();
   const tiers = base.tiers.map((bt, i) => mergeTier(bt, parsed?.tiers?.[i])) as [PricingTier, PricingTier, PricingTier];
+  // Migrate legacy 5-item checklist keys to canonical 7-item keys.
   return {
     ...base,
     ...parsed,
     tiers,
+    checklist: migrateChecklist(parsed?.checklist),
     currentCustomers: Number.isFinite(parsed?.currentCustomers) ? Number(parsed.currentCustomers) : 0,
     targetNewCustomersPerMonth: Number.isFinite(parsed?.targetNewCustomersPerMonth) ? Number(parsed.targetNewCustomersPerMonth) : 0,
   };
