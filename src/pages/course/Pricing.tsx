@@ -463,7 +463,7 @@ function PricesStep({
 function TriggersStep({ s, update }: { s: PricingStrategy; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
   return (
     <div className="space-y-5">
-      <StepHeader kicker="Step 5" title="Add upgrade triggers"
+      <StepHeader kicker="Step 6" title="Add upgrade triggers"
         blurb="The exact limits that will naturally pull customers up a tier — no sales required." />
       <Hint>
         Build triggers so the customer comes to you. Examples: "10 seats", "5,000 API calls/mo", "100GB storage", "more than 3 integrations".
@@ -482,7 +482,7 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
 
   return (
     <div className="space-y-6">
-      <StepHeader kicker="Step 6" title="Review your strategy"
+      <StepHeader kicker="Step 7" title="Review your strategy"
         blurb="Your complete strategy. Edit any earlier step if something looks off — full export (JSON, PDF, PPTX) happens at the end of the course." />
 
       <article className="rounded-lg border border-border bg-card p-6 space-y-6">
