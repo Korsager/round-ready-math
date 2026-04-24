@@ -117,8 +117,18 @@ export function mergeAssumptionsPayload(parsed: any, legacyPricing: PricingStrat
     ? parsed.planStartDate
     : currentMonthISO();
 
+  const parsedFundraise = parsed?.fundraise ?? {};
+  const fundraise: FundraiseAssumptions = {
+    ...DEFAULT_FUNDRAISE,
+    ...parsedFundraise,
+    investmentType: (parsedFundraise.investmentType as InvestmentType) ?? "seed",
+  };
+
   return {
-    fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
+    fundraise,
+    fundraiseOverrides: (parsed?.fundraiseOverrides && typeof parsed.fundraiseOverrides === "object")
+      ? parsed.fundraiseOverrides
+      : {},
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
     cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
     pricing,
