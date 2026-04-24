@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   Check, ChevronLeft, ChevronRight, Target, Layers,
-  DollarSign, Zap, ClipboardCheck, Lightbulb, Sparkles, RotateCcw,
+  DollarSign, Zap, ClipboardCheck, Lightbulb, Sparkles, RotateCcw, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,15 @@ import {
   PricingStrategy,
   PricingModel,
   PricingTier,
+  VanWestendorp,
   blankPricingStrategy,
+  blankVanWestendorp,
   blendedARPU,
   blendedGrossMargin,
   derivedStartingMRR,
   derivedMonthlyNewBookings,
+  parseVwPrice,
+  vwAcceptableRange,
 } from "@/lib/pricingStrategy";
 import { computePricingMaturity } from "@/lib/pricingMaturity";
 import { useAssumptions } from "@/lib/assumptions";
@@ -28,13 +32,14 @@ const fmtUsd0 = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
 import { PRICING_CHECKLIST_ITEMS as CHECKLIST_ITEMS } from "@/lib/pricingMaturity";
 
 const STEPS = [
-  { id: 0, title: "Your Business",     icon: Sparkles,        short: "Context" },
-  { id: 1, title: "Value Metric",      icon: Target,          short: "Step 1" },
-  { id: 2, title: "Pricing Model",     icon: Layers,          short: "Step 2" },
-  { id: 3, title: "3 Tiers",           icon: Layers,          short: "Step 3" },
-  { id: 4, title: "Price Points",      icon: DollarSign,      short: "Step 4" },
-  { id: 5, title: "Upgrade Triggers",  icon: Zap,             short: "Step 5" },
-  { id: 6, title: "Review",            icon: ClipboardCheck,  short: "Step 6" },
+  { id: 0, title: "Your Business",       icon: Sparkles,        short: "Context" },
+  { id: 1, title: "Value Metric",        icon: Target,          short: "Step 1" },
+  { id: 2, title: "Pricing Model",       icon: Layers,          short: "Step 2" },
+  { id: 3, title: "3 Tiers",             icon: Layers,          short: "Step 3" },
+  { id: 4, title: "Price Points",        icon: DollarSign,      short: "Step 4" },
+  { id: 5, title: "Willingness to Pay",  icon: BarChart3,       short: "Step 5" },
+  { id: 6, title: "Upgrade Triggers",    icon: Zap,             short: "Step 6" },
+  { id: 7, title: "Review",              icon: ClipboardCheck,  short: "Step 7" },
 ];
 
 const MODELS: { id: PricingModel; desc: string }[] = [
@@ -150,8 +155,9 @@ export default function CoursePricing() {
             {step === 2 && <ModelStep s={s} update={update} />}
             {step === 3 && <TiersStep s={s} updateTier={updateTier} />}
             {step === 4 && <PricesStep s={s} updateTier={updateTier} update={update} />}
-            {step === 5 && <TriggersStep s={s} update={update} />}
-            {step === 6 && <ReviewStep s={s} update={update} />}
+            {step === 5 && <WillingnessToPayStep s={s} update={update} />}
+            {step === 6 && <TriggersStep s={s} update={update} />}
+            {step === 7 && <ReviewStep s={s} update={update} />}
 
             {/* Inner step nav */}
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
@@ -448,10 +454,68 @@ function PricesStep({
   );
 }
 
+function WillingnessToPayStep({ s, update }: { s: PricingStrategy; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
+  const v = s.vanWestendorp ?? blankVanWestendorp();
+  const setV = (patch: Partial<VanWestendorp>) => update("vanWestendorp", { ...v, ...patch });
+  const range = vwAcceptableRange(v);
+  const sample = parseInt((v.sampleSize || "").replace(/[^0-9]/g, ""), 10);
+  const sampleNum = Number.isFinite(sample) ? sample : 0;
+
+  return (
+    <div className="space-y-5">
+      <StepHeader kicker="Step 5" title="Willingness to pay (Van Westendorp)"
+        blurb="A lightweight capture of the four price-sensitivity questions. Real customer answers beat internal debate." />
+      <Hint>
+        Ask at least 20 customers four questions: at what price would this be so cheap you'd question quality, cheap, starting to feel expensive, too expensive. The intersection of the four curves is your acceptable range. Two days of this beats six months of internal debate.
+      </Hint>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Too cheap" hint="Below this price, they'd question the quality.">
+          <Input value={v.tooCheap} onChange={(e) => setV({ tooCheap: e.target.value })} placeholder="e.g. $9" />
+        </Field>
+        <Field label="Cheap (a bargain)" hint="This would feel like a bargain.">
+          <Input value={v.cheap} onChange={(e) => setV({ cheap: e.target.value })} placeholder="e.g. $19" />
+        </Field>
+        <Field label="Expensive" hint="Starting to feel expensive — they'd need to think.">
+          <Input value={v.expensive} onChange={(e) => setV({ expensive: e.target.value })} placeholder="e.g. $49" />
+        </Field>
+        <Field label="Too expensive" hint="They would not consider buying at this price.">
+          <Input value={v.tooExpensive} onChange={(e) => setV({ tooExpensive: e.target.value })} placeholder="e.g. $99" />
+        </Field>
+      </div>
+
+      <Field label="Sample size" hint="How many customers did you ask? Aim for 20+.">
+        <Input value={v.sampleSize} onChange={(e) => setV({ sampleSize: e.target.value })} placeholder="e.g. 22 customers" />
+      </Field>
+
+      <Field label="Notes" hint="Anything you learned in the conversation that the numbers don't capture.">
+        <Textarea rows={4} value={v.notes} onChange={(e) => setV({ notes: e.target.value })}
+          placeholder="e.g. Mid-market loved the value, smaller teams pushed back on per-seat pricing." />
+      </Field>
+
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+        {range.complete && range.lower !== null && range.upper !== null ? (
+          <p className="text-sm">
+            Acceptable range: <strong>${range.lower.toLocaleString()} – ${range.upper.toLocaleString()}</strong>
+            {range.upper < range.lower && (
+              <span className="ml-2 text-xs text-amber-700">— inverted: re-check your inputs.</span>
+            )}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Fill in all four prices to see your acceptable range.</p>
+        )}
+        {sampleNum > 0 && sampleNum < 20 && (
+          <p className="text-xs text-amber-700">Aim for at least 20 responses. Fewer and the signal is noise.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TriggersStep({ s, update }: { s: PricingStrategy; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
   return (
     <div className="space-y-5">
-      <StepHeader kicker="Step 5" title="Add upgrade triggers"
+      <StepHeader kicker="Step 6" title="Add upgrade triggers"
         blurb="The exact limits that will naturally pull customers up a tier — no sales required." />
       <Hint>
         Build triggers so the customer comes to you. Examples: "10 seats", "5,000 API calls/mo", "100GB storage", "more than 3 integrations".
@@ -470,7 +534,7 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
 
   return (
     <div className="space-y-6">
-      <StepHeader kicker="Step 6" title="Review your strategy"
+      <StepHeader kicker="Step 7" title="Review your strategy"
         blurb="Your complete strategy. Edit any earlier step if something looks off — full export (JSON, PDF, PPTX) happens at the end of the course." />
 
       <article className="rounded-lg border border-border bg-card p-6 space-y-6">
@@ -531,6 +595,34 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
             {!s.upgradeTriggers.trim() && <em className="text-muted-foreground">— none yet —</em>}
           </ul>
         </section>
+
+        {(() => {
+          const v = s.vanWestendorp;
+          if (!v) return null;
+          const hasAny = !!(v.tooCheap || v.cheap || v.expensive || v.tooExpensive || v.sampleSize || v.notes);
+          if (!hasAny) return null;
+          const range = vwAcceptableRange(v);
+          return (
+            <section>
+              <h4 className="text-sm font-semibold uppercase tracking-wider text-primary mb-2">Willingness to Pay</h4>
+              <div className="grid sm:grid-cols-4 gap-2 text-sm">
+                <div><div className="text-xs text-muted-foreground">Too cheap</div><div className="font-semibold">{v.tooCheap || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Cheap</div><div className="font-semibold">{v.cheap || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Expensive</div><div className="font-semibold">{v.expensive || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Too expensive</div><div className="font-semibold">{v.tooExpensive || "—"}</div></div>
+              </div>
+              <div className="mt-2 text-sm">
+                {range.complete && range.lower !== null && range.upper !== null ? (
+                  <>Acceptable range: <strong>${range.lower.toLocaleString()} – ${range.upper.toLocaleString()}</strong></>
+                ) : (
+                  <span className="text-muted-foreground">Acceptable range: not enough data.</span>
+                )}
+                {v.sampleSize && <span className="text-xs text-muted-foreground ml-3">Sample: {v.sampleSize}</span>}
+              </div>
+              {v.notes && <p className="text-sm text-muted-foreground mt-2">{v.notes}</p>}
+            </section>
+          );
+        })()}
 
         <section>
           <div className="flex items-baseline justify-between mb-3">
