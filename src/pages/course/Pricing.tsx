@@ -460,6 +460,64 @@ function PricesStep({
   );
 }
 
+function WillingnessToPayStep({ s, update }: { s: PricingStrategy; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
+  const v = s.vanWestendorp ?? blankVanWestendorp();
+  const setV = (patch: Partial<VanWestendorp>) => update("vanWestendorp", { ...v, ...patch });
+  const range = vwAcceptableRange(v);
+  const sample = parseInt((v.sampleSize || "").replace(/[^0-9]/g, ""), 10);
+  const sampleNum = Number.isFinite(sample) ? sample : 0;
+
+  return (
+    <div className="space-y-5">
+      <StepHeader kicker="Step 5" title="Willingness to pay (Van Westendorp)"
+        blurb="A lightweight capture of the four price-sensitivity questions. Real customer answers beat internal debate." />
+      <Hint>
+        Ask at least 20 customers four questions: at what price would this be so cheap you'd question quality, cheap, starting to feel expensive, too expensive. The intersection of the four curves is your acceptable range. Two days of this beats six months of internal debate.
+      </Hint>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Too cheap" hint="Below this price, they'd question the quality.">
+          <Input value={v.tooCheap} onChange={(e) => setV({ tooCheap: e.target.value })} placeholder="e.g. $9" />
+        </Field>
+        <Field label="Cheap (a bargain)" hint="This would feel like a bargain.">
+          <Input value={v.cheap} onChange={(e) => setV({ cheap: e.target.value })} placeholder="e.g. $19" />
+        </Field>
+        <Field label="Expensive" hint="Starting to feel expensive — they'd need to think.">
+          <Input value={v.expensive} onChange={(e) => setV({ expensive: e.target.value })} placeholder="e.g. $49" />
+        </Field>
+        <Field label="Too expensive" hint="They would not consider buying at this price.">
+          <Input value={v.tooExpensive} onChange={(e) => setV({ tooExpensive: e.target.value })} placeholder="e.g. $99" />
+        </Field>
+      </div>
+
+      <Field label="Sample size" hint="How many customers did you ask? Aim for 20+.">
+        <Input value={v.sampleSize} onChange={(e) => setV({ sampleSize: e.target.value })} placeholder="e.g. 22 customers" />
+      </Field>
+
+      <Field label="Notes" hint="Anything you learned in the conversation that the numbers don't capture.">
+        <Textarea rows={4} value={v.notes} onChange={(e) => setV({ notes: e.target.value })}
+          placeholder="e.g. Mid-market loved the value, smaller teams pushed back on per-seat pricing." />
+      </Field>
+
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+        {range.complete && range.lower !== null && range.upper !== null ? (
+          <p className="text-sm">
+            Acceptable range: <strong>${range.lower.toLocaleString()} – ${range.upper.toLocaleString()}</strong>
+            {range.upper < range.lower && (
+              <span className="ml-2 text-xs text-amber-700">— inverted: re-check your inputs.</span>
+            )}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Fill in all four prices to see your acceptable range.</p>
+        )}
+        {sampleNum > 0 && sampleNum < 20 && (
+          <p className="text-xs text-amber-700">Aim for at least 20 responses. Fewer and the signal is noise.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TriggersStep({ s, update }: { s: PricingStrategy; update: <K extends keyof PricingStrategy>(k: K, v: PricingStrategy[K]) => void }) {
   return (
     <div className="space-y-5">
