@@ -285,7 +285,7 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     { label: "Burn multiple", value: isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞" },
     { label: "Raise size", value: fmtM(a.fundraise.raise) },
     { label: "Raise timing", value: `Mo ${a.cashflow.monthsUntilRaise} (${cal(a.cashflow.monthsUntilRaise)})` },
-  ], `Healthy burn multiple is < 2×. Above signals inefficient growth. Plan start: ${startLabel}.`);
+  ], `Burn multiple: <1× best-in-class, 1–2× healthy, 2–3× watch, >3× inefficient. Plan start: ${startLabel}.`);
 
   if (charts?.cashflowImg) {
     const cs = pres.addSlide();
