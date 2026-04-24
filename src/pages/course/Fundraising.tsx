@@ -282,6 +282,11 @@ export default function CourseFundraising() {
             </div>
           </div>
 
+          <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+            <h4 className="text-[13px] font-semibold text-[#111827] mb-1">{STAGE_HEADLINES[f.investmentType]}</h4>
+            <p className="text-[12px] text-[#374151] leading-relaxed">{STAGE_RATIONALE[f.investmentType]}</p>
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <Metric icon={Target} label="Target IRR" value={`${f.targetIrr}%`} sub="investor's hurdle" />
             <Metric icon={BarChart3} label="MOIC-implied IRR" value={`${r.calcIrr.toFixed(1)}%`} sub={`at ${f.targetMoic}× MOIC`} tone={verdictTone} />
