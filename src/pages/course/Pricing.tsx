@@ -602,6 +602,34 @@ function ReviewStep({ s, update }: { s: PricingStrategy; update: <K extends keyo
           </ul>
         </section>
 
+        {(() => {
+          const v = s.vanWestendorp;
+          if (!v) return null;
+          const hasAny = !!(v.tooCheap || v.cheap || v.expensive || v.tooExpensive || v.sampleSize || v.notes);
+          if (!hasAny) return null;
+          const range = vwAcceptableRange(v);
+          return (
+            <section>
+              <h4 className="text-sm font-semibold uppercase tracking-wider text-primary mb-2">Willingness to Pay</h4>
+              <div className="grid sm:grid-cols-4 gap-2 text-sm">
+                <div><div className="text-xs text-muted-foreground">Too cheap</div><div className="font-semibold">{v.tooCheap || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Cheap</div><div className="font-semibold">{v.cheap || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Expensive</div><div className="font-semibold">{v.expensive || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Too expensive</div><div className="font-semibold">{v.tooExpensive || "—"}</div></div>
+              </div>
+              <div className="mt-2 text-sm">
+                {range.complete && range.lower !== null && range.upper !== null ? (
+                  <>Acceptable range: <strong>${range.lower.toLocaleString()} – ${range.upper.toLocaleString()}</strong></>
+                ) : (
+                  <span className="text-muted-foreground">Acceptable range: not enough data.</span>
+                )}
+                {v.sampleSize && <span className="text-xs text-muted-foreground ml-3">Sample: {v.sampleSize}</span>}
+              </div>
+              {v.notes && <p className="text-sm text-muted-foreground mt-2">{v.notes}</p>}
+            </section>
+          );
+        })()}
+
         <section>
           <h4 className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">Pricing Maturity Checklist</h4>
           <PricingMaturityScore checklist={s.checklist} />
