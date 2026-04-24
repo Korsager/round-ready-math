@@ -25,8 +25,29 @@ const fmtMoic = (v: number) => `${v.toFixed(1)}×`;
 const fmtMult = (v: number) => `${v.toFixed(1)}×`;
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 
+const STAGE_DESCRIPTIONS: Record<InvestmentType, string> = {
+  preseed: "Angel/SAFE round, typically $250k–$1M. Smaller dilution, longer timeline, higher MOIC target.",
+  seed: "Institutional VC round, typically $1–5M. Fund needs ~10–20× on winners to hit LP returns.",
+  seriesA: "Growth round, typically $5–15M. Lower MOIC target, shorter timeline, more revenue-driven.",
+};
+
+const STAGE_HEADLINES: Record<InvestmentType, string> = {
+  preseed: "Why MOIC targets are so high here",
+  seed: "The game a seed VC is playing",
+  seriesA: "Why the math is friendlier at Series A",
+};
+
+const STAGE_RATIONALE: Record<InvestmentType, string> = {
+  preseed:
+    "Pre-seed investors take the most risk — most companies fail before product-market fit. A 20× MOIC target on winners is what makes the portfolio math work.",
+  seed:
+    "The LP wants a 3× fund return. Most seed bets fail, so the fund needs one 100× winner per portfolio. Assuming the VC invests $1M and owns 10% at exit, that's a $1B+ exit — which means ~$100M ARR at a 10× revenue multiple.",
+  seriesA:
+    "By Series A, you have revenue and a clearer risk profile. Investors underwrite to a lower MOIC and IRR because the bet is more measurable — not because the round is easier.",
+};
+
 export default function CourseFundraising() {
-  const { assumptions, setFundraise, setCashflow } = useAssumptions();
+  const { assumptions, setFundraise, setCashflow, setInvestmentType } = useAssumptions();
   const f = assumptions.fundraise;
 
   const r = useMemo(() => {
