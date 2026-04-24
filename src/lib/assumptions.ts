@@ -48,6 +48,8 @@ export interface ForecastOverrides {
 
 export interface Assumptions {
   fundraise: FundraiseAssumptions;
+  /** Per-stage snapshots of fundraise edits so switching stages is lossless. */
+  fundraiseOverrides: Partial<Record<InvestmentType, Partial<Omit<FundraiseAssumptions, "investmentType">>>>;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
   pricing: PricingStrategy;
@@ -72,6 +74,7 @@ export const DEFAULT_FORECAST_OVERRIDES: ForecastOverrides = {
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
+  fundraiseOverrides: {},
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
   pricing: blankPricingStrategy(),
