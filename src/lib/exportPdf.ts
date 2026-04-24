@@ -324,6 +324,7 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
   row("CAC payback", cacPaybackLabel);
   row("Break-even", cf.breakEvenMonth ? `Month ${cf.breakEvenMonth} (${cal(cf.breakEvenMonth)})` : "Not within 36 mo");
   row("Burn multiple (Y1)", isFinite(cf.burnMultiple) ? `${cf.burnMultiple.toFixed(1)}×` : "∞");
+  para("Burn multiple: <1× best-in-class, 1–2× healthy, 2–3× watch, >3× inefficient.");
   y += 12;
 
   if (charts?.cashflowImg) {
