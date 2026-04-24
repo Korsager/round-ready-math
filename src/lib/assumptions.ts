@@ -10,7 +10,10 @@ import {
   LEGACY_PRICING_STORAGE_KEY,
 } from "./pricingStrategy";
 
+export type InvestmentType = "preseed" | "seed" | "seriesA";
+
 export interface FundraiseAssumptions {
+  investmentType: InvestmentType;
   raise: number;
   dilutionPct: number;
   targetIrr: number;
@@ -19,6 +22,15 @@ export interface FundraiseAssumptions {
   revenueMultiple: number;
   valuationMethod: "auto" | "revenue" | "ownership";
 }
+
+/** Per-stage preset bundles (numeric only — investmentType is set on the parent). */
+export type StagePreset = Omit<FundraiseAssumptions, "investmentType" | "revenueMultiple" | "valuationMethod">;
+
+export const STAGE_PRESETS: Record<InvestmentType, StagePreset> = {
+  preseed: { raise: 500_000, dilutionPct: 10, targetIrr: 40, yearsToExit: 8, targetMoic: 20 },
+  seed: { raise: 2_500_000, dilutionPct: 20, targetIrr: 35, yearsToExit: 8, targetMoic: 15 },
+  seriesA: { raise: 10_000_000, dilutionPct: 20, targetIrr: 30, yearsToExit: 6, targetMoic: 8 },
+};
 
 export interface CashflowAssumptions {
   startingCash: number;
