@@ -10,7 +10,10 @@ import {
   LEGACY_PRICING_STORAGE_KEY,
 } from "./pricingStrategy";
 
+export type InvestmentType = "preseed" | "seed" | "seriesA";
+
 export interface FundraiseAssumptions {
+  investmentType: InvestmentType;
   raise: number;
   dilutionPct: number;
   targetIrr: number;
@@ -19,6 +22,15 @@ export interface FundraiseAssumptions {
   revenueMultiple: number;
   valuationMethod: "auto" | "revenue" | "ownership";
 }
+
+/** Per-stage preset bundles (numeric only — investmentType is set on the parent). */
+export type StagePreset = Omit<FundraiseAssumptions, "investmentType" | "revenueMultiple" | "valuationMethod">;
+
+export const STAGE_PRESETS: Record<InvestmentType, StagePreset> = {
+  preseed: { raise: 500_000, dilutionPct: 10, targetIrr: 40, yearsToExit: 8, targetMoic: 20 },
+  seed: { raise: 2_500_000, dilutionPct: 20, targetIrr: 35, yearsToExit: 8, targetMoic: 15 },
+  seriesA: { raise: 10_000_000, dilutionPct: 20, targetIrr: 30, yearsToExit: 6, targetMoic: 8 },
+};
 
 export interface CashflowAssumptions {
   startingCash: number;
@@ -36,6 +48,8 @@ export interface ForecastOverrides {
 
 export interface Assumptions {
   fundraise: FundraiseAssumptions;
+  /** Per-stage snapshots of fundraise edits so switching stages is lossless. */
+  fundraiseOverrides: Partial<Record<InvestmentType, Partial<Omit<FundraiseAssumptions, "investmentType">>>>;
   forecast: ForecastInputs;
   cashflow: CashflowAssumptions;
   pricing: PricingStrategy;
@@ -46,11 +60,8 @@ export interface Assumptions {
 }
 
 export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
-  raise: 2_000_000,
-  dilutionPct: 20,
-  targetIrr: 30,
-  yearsToExit: 5,
-  targetMoic: 4,
+  investmentType: "seed",
+  ...STAGE_PRESETS.seed,
   revenueMultiple: 8,
   valuationMethod: "auto",
 };
@@ -63,6 +74,7 @@ export const DEFAULT_FORECAST_OVERRIDES: ForecastOverrides = {
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   fundraise: DEFAULT_FUNDRAISE,
+  fundraiseOverrides: {},
   forecast: DEFAULT_INPUTS,
   cashflow: DEFAULT_CASHFLOW,
   pricing: blankPricingStrategy(),
@@ -105,8 +117,18 @@ export function mergeAssumptionsPayload(parsed: any, legacyPricing: PricingStrat
     ? parsed.planStartDate
     : currentMonthISO();
 
+  const parsedFundraise = parsed?.fundraise ?? {};
+  const fundraise: FundraiseAssumptions = {
+    ...DEFAULT_FUNDRAISE,
+    ...parsedFundraise,
+    investmentType: (parsedFundraise.investmentType as InvestmentType) ?? "seed",
+  };
+
   return {
-    fundraise: { ...DEFAULT_FUNDRAISE, ...(parsed?.fundraise ?? {}) },
+    fundraise,
+    fundraiseOverrides: (parsed?.fundraiseOverrides && typeof parsed.fundraiseOverrides === "object")
+      ? parsed.fundraiseOverrides
+      : {},
     forecast: { ...DEFAULT_INPUTS, ...(parsed?.forecast ?? {}) },
     cashflow: { ...DEFAULT_CASHFLOW, ...cashflowRest },
     pricing,
@@ -196,6 +218,28 @@ export function useAssumptions() {
     const next = typeof f === "function" ? (f as (p: FundraiseAssumptions) => FundraiseAssumptions)(current.fundraise) : f;
     save({ ...current, fundraise: next });
   }, []);
+  const setInvestmentType = useCallback((newType: InvestmentType) => {
+    const currentType = current.fundraise.investmentType;
+    if (currentType === newType) return;
+
+    // Snapshot outgoing stage's current numeric values (excluding investmentType).
+    const { investmentType: _drop, ...currentValues } = current.fundraise;
+    const nextOverrides = {
+      ...current.fundraiseOverrides,
+      [currentType]: currentValues,
+    };
+
+    // New stage: presets first, then any saved overrides for that stage win.
+    const saved = nextOverrides[newType] ?? {};
+    const nextFundraise: FundraiseAssumptions = {
+      ...current.fundraise,
+      investmentType: newType,
+      ...STAGE_PRESETS[newType],
+      ...saved,
+    };
+
+    save({ ...current, fundraise: nextFundraise, fundraiseOverrides: nextOverrides });
+  }, []);
   const setPricing = useCallback((p: PricingStrategy | ((prev: PricingStrategy) => PricingStrategy)) => {
     const next = typeof p === "function" ? (p as (prev: PricingStrategy) => PricingStrategy)(current.pricing) : p;
     save({ ...current, pricing: next });
@@ -217,6 +261,7 @@ export function useAssumptions() {
     clearForecastEditedFlag,
     setCashflow,
     setFundraise,
+    setInvestmentType,
     setPricing,
     setForecastOverrides,
     setPlanStartDate,

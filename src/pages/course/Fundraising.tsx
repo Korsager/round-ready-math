@@ -9,6 +9,7 @@ import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import IrrGrid from "@/components/fundraise/IrrGrid";
 import { useAssumptions } from "@/lib/assumptions";
+import type { InvestmentType } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
 import { requiredMonthlyGrowth, runScenario } from "@/lib/forecast";
 import { computePlanSummary, fmtPlanMoney } from "@/lib/planSummary";
@@ -24,8 +25,29 @@ const fmtMoic = (v: number) => `${v.toFixed(1)}×`;
 const fmtMult = (v: number) => `${v.toFixed(1)}×`;
 const fmtM = (n: number) => n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${(n / 1e3).toFixed(0)}K`;
 
+const STAGE_DESCRIPTIONS: Record<InvestmentType, string> = {
+  preseed: "Angel/SAFE round, typically $250k–$1M. Smaller dilution, longer timeline, higher MOIC target.",
+  seed: "Institutional VC round, typically $1–5M. Fund needs ~10–20× on winners to hit LP returns.",
+  seriesA: "Growth round, typically $5–15M. Lower MOIC target, shorter timeline, more revenue-driven.",
+};
+
+const STAGE_HEADLINES: Record<InvestmentType, string> = {
+  preseed: "Why MOIC targets are so high here",
+  seed: "The game a seed VC is playing",
+  seriesA: "Why the math is friendlier at Series A",
+};
+
+const STAGE_RATIONALE: Record<InvestmentType, string> = {
+  preseed:
+    "Pre-seed investors take the most risk — most companies fail before product-market fit. A 20× MOIC target on winners is what makes the portfolio math work.",
+  seed:
+    "The LP wants a 3× fund return. Most seed bets fail, so the fund needs one 100× winner per portfolio. Assuming the VC invests $1M and owns 10% at exit, that's a $1B+ exit — which means ~$100M ARR at a 10× revenue multiple.",
+  seriesA:
+    "By Series A, you have revenue and a clearer risk profile. Investors underwrite to a lower MOIC and IRR because the bet is more measurable — not because the round is easier.",
+};
+
 export default function CourseFundraising() {
-  const { assumptions, setFundraise, setCashflow } = useAssumptions();
+  const { assumptions, setFundraise, setCashflow, setInvestmentType } = useAssumptions();
   const f = assumptions.fundraise;
 
   const r = useMemo(() => {
@@ -151,7 +173,34 @@ export default function CourseFundraising() {
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
         <section className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 lg:sticky lg:top-32 self-start">
           <h2 className="text-[14px] font-semibold text-[#111827] mb-1">Inputs</h2>
-          <p className="text-[11px] text-[#9CA3AF] mb-2">Pre-money and post-money are derived.</p>
+          <p className="text-[11px] text-[#9CA3AF] mb-3">Pre-money and post-money are derived.</p>
+
+          <div className="mb-3">
+            <div className="text-[11px] font-medium text-[#6B7280] mb-1.5">Investment type</div>
+            <div className="flex gap-1 rounded-md bg-secondary p-0.5">
+              {([
+                { id: "preseed", label: "Pre-seed" },
+                { id: "seed", label: "Seed" },
+                { id: "seriesA", label: "Series A" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setInvestmentType(opt.id)}
+                  className={`flex-1 px-2 py-1.5 text-[12px] font-medium rounded-md transition-colors ${
+                    f.investmentType === opt.id
+                      ? "bg-white text-[#111827] shadow-sm"
+                      : "text-[#6B7280] hover:text-[#111827]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-[#9CA3AF] mt-2 leading-snug">
+              {STAGE_DESCRIPTIONS[f.investmentType]}
+            </p>
+          </div>
+
           <AssumptionRow label="Raise amount" value={f.raise} format={fmtUsd} onChange={(v) => setFundraise({ ...f, raise: v })} />
           <AssumptionRow label="Dilution" value={f.dilutionPct} format={fmtPct(1)} onChange={(v) => setFundraise({ ...f, dilutionPct: v })} />
           <AssumptionRow label="Pre-money" value={r.preMoney} format={fmtUsd} derived />
@@ -231,6 +280,11 @@ export default function CourseFundraising() {
                 <div>Investors get <strong>{ownershipData[1].value}%</strong></div>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+            <h4 className="text-[13px] font-semibold text-[#111827] mb-1">{STAGE_HEADLINES[f.investmentType]}</h4>
+            <p className="text-[12px] text-[#374151] leading-relaxed">{STAGE_RATIONALE[f.investmentType]}</p>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">

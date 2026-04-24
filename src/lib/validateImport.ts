@@ -24,6 +24,7 @@ const KNOWN_TOP_LEVEL = new Set([
   "cashflow",
   "pricing",
   "forecastOverrides",
+  "fundraiseOverrides",
   "forecastManuallyEdited",
   "planStartDate",
 ]);
