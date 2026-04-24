@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   Check, ChevronLeft, ChevronRight, Target, Layers,
-  DollarSign, Zap, ClipboardCheck, Lightbulb, Sparkles, RotateCcw,
+  DollarSign, Zap, ClipboardCheck, Lightbulb, Sparkles, RotateCcw, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,15 @@ import {
   PricingStrategy,
   PricingModel,
   PricingTier,
+  VanWestendorp,
   blankPricingStrategy,
+  blankVanWestendorp,
   blendedARPU,
   blendedGrossMargin,
   derivedStartingMRR,
   derivedMonthlyNewBookings,
+  parseVwPrice,
+  vwAcceptableRange,
 } from "@/lib/pricingStrategy";
 import { computePricingMaturity } from "@/lib/pricingMaturity";
 import { useAssumptions } from "@/lib/assumptions";
@@ -34,13 +38,14 @@ const CHECKLIST_ITEMS = [
 ];
 
 const STEPS = [
-  { id: 0, title: "Your Business",     icon: Sparkles,        short: "Context" },
-  { id: 1, title: "Value Metric",      icon: Target,          short: "Step 1" },
-  { id: 2, title: "Pricing Model",     icon: Layers,          short: "Step 2" },
-  { id: 3, title: "3 Tiers",           icon: Layers,          short: "Step 3" },
-  { id: 4, title: "Price Points",      icon: DollarSign,      short: "Step 4" },
-  { id: 5, title: "Upgrade Triggers",  icon: Zap,             short: "Step 5" },
-  { id: 6, title: "Review",            icon: ClipboardCheck,  short: "Step 6" },
+  { id: 0, title: "Your Business",       icon: Sparkles,        short: "Context" },
+  { id: 1, title: "Value Metric",        icon: Target,          short: "Step 1" },
+  { id: 2, title: "Pricing Model",       icon: Layers,          short: "Step 2" },
+  { id: 3, title: "3 Tiers",             icon: Layers,          short: "Step 3" },
+  { id: 4, title: "Price Points",        icon: DollarSign,      short: "Step 4" },
+  { id: 5, title: "Willingness to Pay",  icon: BarChart3,       short: "Step 5" },
+  { id: 6, title: "Upgrade Triggers",    icon: Zap,             short: "Step 6" },
+  { id: 7, title: "Review",              icon: ClipboardCheck,  short: "Step 7" },
 ];
 
 const MODELS: { id: PricingModel; desc: string }[] = [
@@ -156,8 +161,9 @@ export default function CoursePricing() {
             {step === 2 && <ModelStep s={s} update={update} />}
             {step === 3 && <TiersStep s={s} updateTier={updateTier} />}
             {step === 4 && <PricesStep s={s} updateTier={updateTier} update={update} />}
-            {step === 5 && <TriggersStep s={s} update={update} />}
-            {step === 6 && <ReviewStep s={s} update={update} />}
+            {step === 5 && <WillingnessToPayStep s={s} update={update} />}
+            {step === 6 && <TriggersStep s={s} update={update} />}
+            {step === 7 && <ReviewStep s={s} update={update} />}
 
             {/* Inner step nav */}
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
