@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario, deriveCacPayback } from "./forecast";
-import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
+import { blankPricingStrategy, vwAcceptableRange, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary } from "./planSummary";
 import { monthCalendar, planStartLabel } from "./dateAnchor";
@@ -238,6 +238,23 @@ export function exportPdf(a: Assumptions, pricingArg?: PricingStrategy, charts?:
 
   labeledBlock("Anchoring notes", pricing.anchoringNotes);
   labeledBlock("Upgrade triggers", pricing.upgradeTriggers);
+
+  // Willingness to pay (Van Westendorp) — only render if any field is populated.
+  const vw = pricing.vanWestendorp;
+  if (vw && (vw.tooCheap || vw.cheap || vw.expensive || vw.tooExpensive || vw.sampleSize || vw.notes)) {
+    subhead("Willingness to pay (Van Westendorp)");
+    if (vw.tooCheap) row("Too cheap", vw.tooCheap);
+    if (vw.cheap) row("Cheap", vw.cheap);
+    if (vw.expensive) row("Expensive", vw.expensive);
+    if (vw.tooExpensive) row("Too expensive", vw.tooExpensive);
+    const range = vwAcceptableRange(vw);
+    if (range.complete && range.lower !== null && range.upper !== null) {
+      row("Acceptable range", `$${range.lower.toLocaleString()} – $${range.upper.toLocaleString()}`);
+    }
+    if (vw.sampleSize) row("Sample size", vw.sampleSize);
+    labeledBlock("WTP notes", vw.notes);
+  }
+
   const maturity = computePricingMaturity(pricing);
   row("Pricing maturity score", `${maturity.score} / ${maturity.total}`);
   para(maturity.verdict);
