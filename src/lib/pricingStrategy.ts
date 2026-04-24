@@ -76,6 +76,8 @@ export interface PricingStrategy {
   // Strategy-level customer counts (used with blended ARPU to derive forecast).
   currentCustomers: number;
   targetNewCustomersPerMonth: number;
+  // Optional Van Westendorp Price Sensitivity Meter capture. Undefined on legacy saves.
+  vanWestendorp?: VanWestendorp;
 }
 
 // Legacy localStorage key — kept exported ONLY so the assumptions store can
@@ -112,6 +114,7 @@ export const blankPricingStrategy = (): PricingStrategy => ({
   checklist: {},
   currentCustomers: 0,
   targetNewCustomersPerMonth: 0,
+  vanWestendorp: blankVanWestendorp(),
 });
 
 function mergeTier(base: PricingTier, raw: Partial<PricingTier> | undefined): PricingTier {
@@ -138,6 +141,7 @@ export function mergePricingStrategy(parsed: any): PricingStrategy {
     tiers,
     currentCustomers: Number.isFinite(parsed?.currentCustomers) ? Number(parsed.currentCustomers) : 0,
     targetNewCustomersPerMonth: Number.isFinite(parsed?.targetNewCustomersPerMonth) ? Number(parsed.targetNewCustomersPerMonth) : 0,
+    vanWestendorp: { ...blankVanWestendorp(), ...(parsed?.vanWestendorp ?? {}) },
   };
 }
 
