@@ -23,6 +23,46 @@ export interface PricingContext {
   currentPricing: string;
 }
 
+export interface VanWestendorp {
+  tooCheap: string;        // "Below this price I'd question the quality"
+  cheap: string;           // "This would feel like a bargain"
+  expensive: string;       // "Starting to feel expensive, I'd need to think"
+  tooExpensive: string;    // "I would not consider buying at this price"
+  sampleSize: string;      // e.g. "22 customers"
+  notes: string;
+}
+
+export const blankVanWestendorp = (): VanWestendorp => ({
+  tooCheap: "", cheap: "", expensive: "", tooExpensive: "",
+  sampleSize: "", notes: "",
+});
+
+// Parse a free-form numeric string (strips currency, commas). Returns null if no usable number.
+export function parseVwPrice(raw: string): number | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export interface VwAcceptableRange {
+  lower: number | null;
+  upper: number | null;
+  complete: boolean;
+}
+
+export function vwAcceptableRange(v: VanWestendorp | undefined): VwAcceptableRange {
+  if (!v) return { lower: null, upper: null, complete: false };
+  const tc = parseVwPrice(v.tooCheap);
+  const c = parseVwPrice(v.cheap);
+  const e = parseVwPrice(v.expensive);
+  const te = parseVwPrice(v.tooExpensive);
+  if (tc !== null && c !== null && e !== null && te !== null) {
+    return { lower: Math.max(tc, c), upper: Math.min(e, te), complete: true };
+  }
+  return { lower: null, upper: null, complete: false };
+}
+
 export interface PricingStrategy {
   context: PricingContext;
   valueMetric: { name: string; rationale: string };
