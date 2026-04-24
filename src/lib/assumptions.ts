@@ -218,6 +218,28 @@ export function useAssumptions() {
     const next = typeof f === "function" ? (f as (p: FundraiseAssumptions) => FundraiseAssumptions)(current.fundraise) : f;
     save({ ...current, fundraise: next });
   }, []);
+  const setInvestmentType = useCallback((newType: InvestmentType) => {
+    const currentType = current.fundraise.investmentType;
+    if (currentType === newType) return;
+
+    // Snapshot outgoing stage's current numeric values (excluding investmentType).
+    const { investmentType: _drop, ...currentValues } = current.fundraise;
+    const nextOverrides = {
+      ...current.fundraiseOverrides,
+      [currentType]: currentValues,
+    };
+
+    // New stage: presets first, then any saved overrides for that stage win.
+    const saved = nextOverrides[newType] ?? {};
+    const nextFundraise: FundraiseAssumptions = {
+      ...current.fundraise,
+      investmentType: newType,
+      ...STAGE_PRESETS[newType],
+      ...saved,
+    };
+
+    save({ ...current, fundraise: nextFundraise, fundraiseOverrides: nextOverrides });
+  }, []);
   const setPricing = useCallback((p: PricingStrategy | ((prev: PricingStrategy) => PricingStrategy)) => {
     const next = typeof p === "function" ? (p as (prev: PricingStrategy) => PricingStrategy)(current.pricing) : p;
     save({ ...current, pricing: next });
