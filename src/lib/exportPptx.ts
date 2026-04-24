@@ -2,7 +2,7 @@ import pptxgen from "pptxgenjs";
 import type { Assumptions } from "./assumptions";
 import { simulateCashflow } from "./cashflow";
 import { runScenario, deriveCacPayback } from "./forecast";
-import { blankPricingStrategy, type PricingStrategy } from "./pricingStrategy";
+import { blankPricingStrategy, vwAcceptableRange, type PricingStrategy } from "./pricingStrategy";
 import { computeImpliedIrr } from "./impliedIrr";
 import { computePlanSummary, type PlanSummary, fmtPlanMoney } from "./planSummary";
 import { monthCalendar, planStartLabel } from "./dateAnchor";
@@ -210,6 +210,22 @@ export function exportPptx(a: Assumptions, pricingArg?: PricingStrategy, charts?
     { label: "Upgrade triggers", value: pricing.upgradeTriggers },
     { label: "Model notes", value: pricing.modelNotes },
   ].filter((n) => n.value?.trim());
+
+  // Append Willingness to Pay (Van Westendorp) as a single bullet row, if populated.
+  const vw = pricing.vanWestendorp;
+  if (vw && (vw.tooCheap || vw.cheap || vw.expensive || vw.tooExpensive || vw.sampleSize || vw.notes)) {
+    const range = vwAcceptableRange(vw);
+    const parts: string[] = [];
+    if (vw.tooCheap || vw.cheap || vw.expensive || vw.tooExpensive) {
+      parts.push(`Too cheap ${vw.tooCheap || "—"} · Cheap ${vw.cheap || "—"} · Expensive ${vw.expensive || "—"} · Too expensive ${vw.tooExpensive || "—"}`);
+    }
+    if (range.complete && range.lower !== null && range.upper !== null) {
+      parts.push(`Acceptable range: $${range.lower.toLocaleString()} – $${range.upper.toLocaleString()}`);
+    }
+    if (vw.sampleSize) parts.push(`Sample: ${vw.sampleSize}`);
+    if (vw.notes) parts.push(vw.notes);
+    if (parts.length) noteFields.push({ label: "Willingness to pay", value: parts.join("  ·  ") });
+  }
 
   if (noteFields.length) {
     const ns = pres.addSlide();
