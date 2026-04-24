@@ -58,11 +58,8 @@ export interface Assumptions {
 }
 
 export const DEFAULT_FUNDRAISE: FundraiseAssumptions = {
-  raise: 2_000_000,
-  dilutionPct: 20,
-  targetIrr: 30,
-  yearsToExit: 5,
-  targetMoic: 4,
+  investmentType: "seed",
+  ...STAGE_PRESETS.seed,
   revenueMultiple: 8,
   valuationMethod: "auto",
 };
