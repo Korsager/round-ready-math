@@ -9,6 +9,7 @@ import AssumptionRow from "@/components/assumptions/AssumptionRow";
 import HeatmapGrid from "@/components/HeatmapGrid";
 import IrrGrid from "@/components/fundraise/IrrGrid";
 import { useAssumptions } from "@/lib/assumptions";
+import type { InvestmentType } from "@/lib/assumptions";
 import { computeImpliedIrr } from "@/lib/impliedIrr";
 import { requiredMonthlyGrowth, runScenario } from "@/lib/forecast";
 import { computePlanSummary, fmtPlanMoney } from "@/lib/planSummary";
