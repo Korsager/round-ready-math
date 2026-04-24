@@ -261,6 +261,7 @@ export function useAssumptions() {
     clearForecastEditedFlag,
     setCashflow,
     setFundraise,
+    setInvestmentType,
     setPricing,
     setForecastOverrides,
     setPlanStartDate,
