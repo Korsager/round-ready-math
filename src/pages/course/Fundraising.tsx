@@ -173,7 +173,34 @@ export default function CourseFundraising() {
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
         <section className="bg-white rounded-xl border border-[#E5E7EB] p-4 sm:p-5 lg:sticky lg:top-32 self-start">
           <h2 className="text-[14px] font-semibold text-[#111827] mb-1">Inputs</h2>
-          <p className="text-[11px] text-[#9CA3AF] mb-2">Pre-money and post-money are derived.</p>
+          <p className="text-[11px] text-[#9CA3AF] mb-3">Pre-money and post-money are derived.</p>
+
+          <div className="mb-3">
+            <div className="text-[11px] font-medium text-[#6B7280] mb-1.5">Investment type</div>
+            <div className="flex gap-1 rounded-md bg-secondary p-0.5">
+              {([
+                { id: "preseed", label: "Pre-seed" },
+                { id: "seed", label: "Seed" },
+                { id: "seriesA", label: "Series A" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setInvestmentType(opt.id)}
+                  className={`flex-1 px-2 py-1.5 text-[12px] font-medium rounded-md transition-colors ${
+                    f.investmentType === opt.id
+                      ? "bg-white text-[#111827] shadow-sm"
+                      : "text-[#6B7280] hover:text-[#111827]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-[#9CA3AF] mt-2 leading-snug">
+              {STAGE_DESCRIPTIONS[f.investmentType]}
+            </p>
+          </div>
+
           <AssumptionRow label="Raise amount" value={f.raise} format={fmtUsd} onChange={(v) => setFundraise({ ...f, raise: v })} />
           <AssumptionRow label="Dilution" value={f.dilutionPct} format={fmtPct(1)} onChange={(v) => setFundraise({ ...f, dilutionPct: v })} />
           <AssumptionRow label="Pre-money" value={r.preMoney} format={fmtUsd} derived />
